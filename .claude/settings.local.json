@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__chrome-mcp-server__chrome_navigate",
+      "mcp__chrome-mcp-server__chrome_get_web_content",
+      "Bash(python -c \"import model; print(''model module imported successfully'')\")",
+      "Bash(python test_connection.py)",
+      "WebFetch(domain:python.langchain.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,260 @@
+# LangChain Agents 中文总结文档
+
+## 概述
+Agents 是 LangChain 中的核心组件，它将语言模型与工具结合，创建能够推理任务、决定使用哪些工具并迭代工作以达成解决方案的系统。`create_agent` 函数提供了生产就绪的代理实现。
+
+## 核心组件
+
+### 模型 (Model)
+模型是代理的推理引擎，支持静态和动态模型选择。
+
+#### 静态模型
+最常见和直接的方法，在创建代理时配置一次并在整个执行过程中保持不变：
+```python
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+model = ChatOpenAI(model="gpt-5", temperature=0.1, max_tokens=1000, timeout=30)
+agent = create_agent(model, tools=tools)
+```
+
+#### 动态模型
+基于当前上下文选择模型，支持复杂的路由逻辑和成本优化：
+```python
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain.agents.middleware import wrap_model_call, ModelRequest, ModelResponse
+
+basic_model = ChatOpenAI(model="gpt-4o-mini")
+advanced_model = ChatOpenAI(model="gpt-4o")
+
+@wrap_model_call
+def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse:
+    """根据对话复杂度选择模型"""
+    message_count = len(request.state["messages"])
+    if message_count > 10:
+        model = advanced_model  # 长对话使用高级模型
+    else:
+        model = basic_model
+    return handler(request.override(model=model))
+
+agent = create_agent(
+    model=basic_model,  # 默认模型
+    tools=tools,
+    middleware=[dynamic_model_selection]
+)
+```
+
+### 工具 (Tools)
+工具赋予代理执行动作的能力，超越简单的模型绑定，支持：
+- 顺序多次工具调用
+- 适当的并行工具调用
+- 基于先前结果的动态工具选择
+- 工具重试逻辑和错误处理
+- 跨工具调用的状态持久化
+
+#### 定义工具
+```python
+from langchain.tools import tool
+from langchain.agents import create_agent
+
+@tool
+def search(query: str) -> str:
+    """搜索信息"""
+    return f"Results for: {query}"
+
+@tool
+def get_weather(location: str) -> str:
+    """获取位置的天气信息"""
+    return f"Weather in {location}: Sunny, 72°F"
+
+agent = create_agent(model, tools=[search, get_weather])
+```
+
+#### 工具错误处理
+```python
+from langchain.agents import create_agent
+from langchain.agents.middleware import wrap_tool_call
+from langchain.messages import ToolMessage
+
+@wrap_tool_call
+def handle_tool_errors(request, handler):
+    """使用自定义消息处理工具执行错误"""
+    try:
+        return handler(request)
+    except Exception as e:
+        # 返回自定义错误消息给模型
+        return ToolMessage(
+            content=f"Tool error: Please check your input and try again. ({str(e)})",
+            tool_call_id=request.tool_call["id"]
+        )
+
+agent = create_agent(
+    model="gpt-4o",
+    tools=[search, get_weather],
+    middleware=[handle_tool_errors]
+)
+```
+
+### 系统提示 (System Prompt)
+可以通过 `system_prompt` 参数塑造代理处理任务的方式：
+```python
+agent = create_agent(
+    model,
+    tools,
+    system_prompt="You are a helpful assistant. Be concise and accurate."
+)
+```
+
+使用 `SystemMessage` 可以获得更多控制权，适用于提供商特定功能：
+```python
+from langchain.agents import create_agent
+from langchain.messages import SystemMessage, HumanMessage
+
+literary_agent = create_agent(
+    model="anthropic:claude-sonnet-4-5",
+    system_prompt=SystemMessage(
+        content=[
+            {
+                "type": "text",
+                "text": "You are an AI assistant tasked with analyzing literary works.",
+            },
+            {
+                "type": "text",
+                "text": "<the entire contents of 'Pride and Prejudice'>",
+                "cache_control": {"type": "ephemeral"}
+            }
+        ]
+    )
+)
+```
+
+### 动态系统提示
+对于需要基于运行时上下文或代理状态修改系统提示的高级用例：
+```python
+from typing import TypedDict
+from langchain.agents import create_agent
+from langchain.agents.middleware import dynamic_prompt, ModelRequest
+
+class Context(TypedDict):
+    user_role: str
+
+@dynamic_prompt
+def user_role_prompt(request: ModelRequest) -> str:
+    """基于用户角色生成系统提示"""
+    user_role = request.runtime.context.get("user_role", "user")
+    base_prompt = "You are a helpful assistant."
+    if user_role == "expert":
+        return f"{base_prompt} Provide detailed technical responses."
+    elif user_role == "beginner":
+        return f"{base_prompt} Explain concepts simply and avoid jargon."
+    return base_prompt
+
+agent = create_agent(
+    model="gpt-4o",
+    tools=[web_search],
+    middleware=[user_role_prompt],
+    context_schema=Context
+)
+
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "Explain machine learning"}]},
+    context={"user_role": "expert"}
+)
+```
+
+## 执行模式 (ReAct Loop)
+代理遵循 ReAct（"Reasoning + Acting"）模式，在简短的推理步骤与有针对性的工具调用之间交替，将观察结果反馈到后续决策中，直到能给出最终答案。
+
+示例流程：
+1. 用户提问："找出目前最受欢迎的无线耳机并确认库存"
+2. 代理推理："流行度是时效性的，我需要使用提供的搜索工具"
+3. 执行：调用 `search_products("wireless headphones")`
+4. 观察：找到5个匹配产品，WH-1000XM5排名最高
+5. 代理推理："我需要确认顶级产品的可用性"
+6. 执行：调用 `check_inventory("WH-1000XM5")`
+7. 观察：产品WH-1000XM5有10个单位库存
+8. 最终回答：报告找到的产品及其库存状态
+
+## 高级概念
+
+### 结构化输出
+在某些情况下，可能希望代理以特定格式返回输出：
+```python
+from pydantic import BaseModel
+from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
+
+class ContactInfo(BaseModel):
+    name: str
+    email: str
+    phone: str
+
+agent = create_agent(
+    model="gpt-4o-mini",
+    tools=[search_tool],
+    response_format=ToolStrategy(ContactInfo)
+)
+
+result = agent.invoke({
+    "messages": [{
+        "role": "user",
+        "content": "Extract contact info from: John Doe, john@example.com, (555) 123-4567"
+    }]
+})
+
+# result["structured_response"] 返回 ContactInfo(name='John Doe', email='john@example.com', phone='(555) 123-4567')
+```
+
+### 内存管理
+代理通过消息状态自动维护对话历史，也可以配置自定义状态模式来记住对话期间的额外信息。
+
+#### 通过中间件定义状态
+```python
+from langchain.agents import AgentState
+from langchain.agents.middleware import AgentMiddleware
+from typing import Any
+
+class CustomState(AgentState):
+    user_preferences: dict
+
+class CustomMiddleware(AgentMiddleware):
+    state_schema = CustomState
+    tools = [tool1, tool2]
+
+    def before_model(self, state: CustomState, runtime) -> dict[str, Any] | None:
+        ...
+
+agent = create_agent(model, tools=tools, middleware=[CustomMiddleware()])
+
+result = agent.invoke({
+    "messages": [{"role": "user", "content": "I prefer technical explanations"}],
+    "user_preferences": {"style": "technical", "verbosity": "detailed"},
+})
+```
+
+### 流式传输
+为了显示中间进度，可以流式传输消息：
+```python
+for chunk in agent.stream({
+    "messages": [{
+        "role": "user",
+        "content": "Search for AI news and summarize the findings"
+    }]
+}, stream_mode="values"):
+    latest_message = chunk["messages"][-1]
+    if latest_message.content:
+        print(f"Agent: {latest_message.content}")
+    elif latest_message.tool_calls:
+        print(f"Calling tools: {[tc['name'] for tc in latest_message.tool_calls]}")
+```
+
+### 中间件 (Middleware)
+中间件为在执行的不同阶段自定义代理行为提供了强大的扩展性：
+- 在模型被调用前处理状态（如消息修剪、上下文注入）
+- 修改或验证模型的响应（如防护措施、内容过滤）
+- 使用自定义逻辑处理工具执行错误
+- 基于状态或上下文实现动态模型选择
+- 添加自定义日志记录、监控或分析
+
+中间件无缝集成到代理执行中，允许在关键点拦截和修改数据流，而无需更改核心代理逻辑。
