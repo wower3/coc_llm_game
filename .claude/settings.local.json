@@ -5,7 +5,8 @@
       "mcp__chrome-mcp-server__chrome_get_web_content",
       "Bash(python -c \"import model; print(''model module imported successfully'')\")",
       "Bash(python test_connection.py)",
-      "WebFetch(domain:python.langchain.com)"
+      "WebFetch(domain:python.langchain.com)",
+      "WebFetch(domain:docs.langchain.com)"
     ],
     "deny": [],
     "ask": []
