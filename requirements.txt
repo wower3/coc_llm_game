@@ -1,0 +1,8 @@
+dotenv
+langchain==1.1.0
+langchain_deepseek
+langchain_openai
+pydantic
+fastapi
+uvicorn
+pymysql
