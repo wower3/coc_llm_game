@@ -65,6 +65,34 @@ class ThreadManager:
         self.scenes_dir = scenes_dir
         # txt搜索器
         self.txt_search = TxtKeywordSearch(scenes_dir)
+        # 加载主线程提示词
+        self.main_prompt = self._load_main_prompt()
+
+    def _load_main_prompt(self) -> str:
+        """
+        从文件加载主线程提示词
+
+        :return: 主线程提示词内容
+        """
+        import os
+        main_prompt_file = os.path.join(self.scenes_dir, "开始-连接-结尾.txt")
+        try:
+            with open(main_prompt_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return f"""
+                    你是一个克苏鲁神话角色扮演游戏(CoC)的智能游戏主持人(GM)。
+
+                    【主线剧本内容】
+                    {content}
+
+                    在主线程中，请：
+                    - 根据上述剧本内容引导玩家
+                    - 理解玩家的意图并选择合适的工具
+                    - 保持克苏鲁神话的氛围和风格
+                    - 根据玩家选择的调查方向，调用 new_scene 工具进入对应场景
+                    """
+        except FileNotFoundError:
+            return MAIN_PROMPT
 
     @property
     def in_scene(self) -> bool:
@@ -159,7 +187,7 @@ class ThreadManager:
         """获取当前应使用的提示词"""
         if self.scene_stack:
             return self.scene_stack[-1].prompt
-        return MAIN_PROMPT
+        return self.main_prompt
 
 
 class McpService:
