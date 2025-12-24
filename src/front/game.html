@@ -76,9 +76,9 @@
 
         /* 左侧人物属性栏 */
         .character-panel {
-            width: 280px;
+            min-width: 200px;
             background: linear-gradient(to bottom, #16213e, #1a1a2e);
-            border-right: 2px solid #0f3460;
+            border-right: none;
             padding: 15px;
             overflow-y: auto;
             flex-shrink: 0;
@@ -298,10 +298,10 @@
 
         /* 右侧面板 */
         .right-panel {
-            width: 300px;
+            min-width: 200px;
             display: flex;
             flex-direction: column;
-            border-left: 2px solid #0f3460;
+            border-left: none;
             flex-shrink: 0;
         }
 
@@ -383,10 +383,11 @@
 
         /* 选项栏 */
         .options-panel {
-            height: 200px;
+            min-height: 100px;
             background: linear-gradient(to bottom, #1a1a2e, #16213e);
             padding: 15px;
             overflow-y: auto;
+            flex-shrink: 0;
         }
 
         .options-panel h2 {
@@ -487,6 +488,247 @@
             color: #4ecdc4;
             font-weight: bold;
         }
+
+        /* 折叠面板样式 */
+        .collapsible-section {
+            margin-bottom: 10px;
+        }
+
+        .collapse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .collapse-header:hover {
+            background: rgba(233, 69, 96, 0.3);
+        }
+
+        .collapse-header h3 {
+            color: #e94560;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .collapse-icon {
+            color: #e94560;
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .collapse-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .collapse-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapse-content.expanded {
+            max-height: 2000px;
+        }
+
+        .collapse-content-inner {
+            padding-top: 10px;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0f3460;
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 性别图标 */
+        .sex-icon {
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        .sex-icon.male { color: #667eea; }
+        .sex-icon.female { color: #f093fb; }
+
+        /* 调查员ID输入区域 */
+        .player-id-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .player-id-input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .player-id-input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .player-id-input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .btn-small {
+            padding: 8px 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+        }
+
+        .btn-search {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-search:hover {
+            background: #ff6b6b;
+        }
+
+        .btn-refresh {
+            background: #4ecdc4;
+            color: #fff;
+        }
+
+        .btn-refresh:hover {
+            background: #44a08d;
+        }
+
+        .btn-small:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            color: #e94560;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        /* 服务控制区域 */
+        .service-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .service-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #4ecdc4;
+            box-shadow: 0 0 5px #4ecdc4;
+        }
+
+        .status-dot.offline {
+            background: #e94560;
+            box-shadow: 0 0 5px #e94560;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn-service {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: #4ecdc4;
+            color: #fff;
+        }
+
+        .btn-start:hover {
+            background: #44a08d;
+        }
+
+        .btn-stop {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-stop:hover {
+            background: #ff6b6b;
+        }
+
+        .btn-service:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 可拖动分隔条 */
+        .resizer {
+            background: #0f3460;
+            transition: background 0.3s;
+        }
+
+        .resizer:hover {
+            background: #e94560;
+        }
+
+        .resizer-h {
+            width: 6px;
+            cursor: col-resize;
+        }
+
+        .resizer-v {
+            height: 6px;
+            cursor: row-resize;
+        }
+
+        .resizer:active {
+            background: #e94560;
+        }
     </style>
 </head>
 <body>
@@ -502,6 +744,26 @@
                 <div class="menu-item" @click="loadGame">读档</div>
             </div>
             <div class="menu-right">
+                <!-- 服务控制 -->
+                <div class="service-control">
+                    <div class="service-status">
+                        <span :class="['status-dot', apiOnline ? 'online' : 'offline']"></span>
+                        <span>{{ apiOnline ? 'API在线' : 'API离线' }}</span>
+                    </div>
+                    <button
+                        v-if="!apiOnline"
+                        class="btn-service btn-start"
+                        @click="startApiService"
+                        :disabled="serviceLoading"
+                    >启动服务</button>
+                    <button
+                        v-else
+                        class="btn-service btn-stop"
+                        @click="stopApiService"
+                        :disabled="serviceLoading"
+                    >停止服务</button>
+                </div>
+                <span>|</span>
                 <span>章节: {{ currentChapter }}</span>
                 <span>|</span>
                 <span>场景: {{ currentScene }}</span>
@@ -511,12 +773,37 @@
         <!-- 主内容区域 -->
         <div class="main-content">
             <!-- 左侧人物属性栏 -->
-            <div class="character-panel">
-                <h2>调查员信息</h2>
+            <div class="character-panel" :style="{ width: leftPanelWidth + 'px' }">
+                <h2>调查员信息 <span v-if="isLoading" class="loading-spinner"></span></h2>
+
+                <!-- 调查员ID输入区域 -->
+                <div class="player-id-section">
+                    <div class="player-id-input-group">
+                        <input
+                            type="text"
+                            class="player-id-input"
+                            v-model="playerIdInput"
+                            placeholder="输入调查员ID"
+                            @keyup.enter="searchPlayer"
+                        />
+                        <button class="btn-small btn-search" @click="searchPlayer" :disabled="isLoading">
+                            查询
+                        </button>
+                        <button class="btn-small btn-refresh" @click="refreshPlayer" :disabled="isLoading">
+                            刷新
+                        </button>
+                    </div>
+                    <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+                </div>
 
                 <div class="character-info">
-                    <div class="character-name">{{ character.name }}</div>
-                    <div class="character-occupation">{{ character.occupation }} | {{ character.age }}岁</div>
+                    <div class="character-name">
+                        {{ character.name }}
+                        <span :class="['sex-icon', character.sex === 'Male' ? 'male' : 'female']">
+                            {{ character.sex === 'Male' ? '♂' : '♀' }}
+                        </span>
+                    </div>
+                    <div class="character-occupation">{{ character.age }}岁</div>
                 </div>
 
                 <div class="status-bars">
@@ -547,63 +834,80 @@
                             <div class="bar-fill mp" :style="{ width: (character.mp / character.maxMp * 100) + '%' }"></div>
                         </div>
                     </div>
-                    <div class="status-bar">
-                        <div class="bar-label">
-                            <span>幸运值 (Luck)</span>
-                            <span>{{ character.luck }} / 99</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-fill luck" :style="{ width: (character.luck / 99 * 100) + '%' }"></div>
+                </div>
+
+                <!-- 基础属性 - 可折叠 -->
+                <div class="collapsible-section">
+                    <div class="collapse-header" @click="toggleSection('attrs')">
+                        <h3>基础属性</h3>
+                        <span :class="['collapse-icon', { expanded: sections.attrs }]">▼</span>
+                    </div>
+                    <div :class="['collapse-content', { expanded: sections.attrs }]">
+                        <div class="collapse-content-inner">
+                            <div class="attr-grid">
+                                <div class="attr-item">
+                                    <div class="label">力量 STR</div>
+                                    <div class="value">{{ character.str }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">体质 CON</div>
+                                    <div class="value">{{ character.con }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">体型 SIZ</div>
+                                    <div class="value">{{ character.siz }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">敏捷 DEX</div>
+                                    <div class="value">{{ character.dex }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">外貌 APP</div>
+                                    <div class="value">{{ character.app }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">智力 INT</div>
+                                    <div class="value">{{ character.int }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">意志 POW</div>
+                                    <div class="value">{{ character.pow }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">教育 EDU</div>
+                                    <div class="value">{{ character.edu }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">幸运 LUK</div>
+                                    <div class="value">{{ character.luck }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="attr-section">
-                    <h3>基础属性</h3>
-                    <div class="attr-grid">
-                        <div class="attr-item">
-                            <div class="label">力量 STR</div>
-                            <div class="value">{{ character.str }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">体质 CON</div>
-                            <div class="value">{{ character.con }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">体型 SIZ</div>
-                            <div class="value">{{ character.siz }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">敏捷 DEX</div>
-                            <div class="value">{{ character.dex }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">外貌 APP</div>
-                            <div class="value">{{ character.app }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">智力 INT</div>
-                            <div class="value">{{ character.int }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">意志 POW</div>
-                            <div class="value">{{ character.pow }}</div>
-                        </div>
-                        <div class="attr-item">
-                            <div class="label">教育 EDU</div>
-                            <div class="value">{{ character.edu }}</div>
-                        </div>
+                <!-- 技能列表 - 可折叠 -->
+                <div class="collapsible-section">
+                    <div class="collapse-header" @click="toggleSection('skills')">
+                        <h3>技能列表 ({{ mainSkills.length }})</h3>
+                        <span :class="['collapse-icon', { expanded: sections.skills }]">▼</span>
                     </div>
-                </div>
-
-                <div class="skills-section">
-                    <h3 style="color: #e94560; font-size: 14px; margin-bottom: 10px;">常用技能</h3>
-                    <div class="skill-item" v-for="skill in mainSkills" :key="skill.name">
-                        <span class="skill-name">{{ skill.name }}</span>
-                        <span class="skill-value">{{ skill.value }}%</span>
+                    <div :class="['collapse-content', { expanded: sections.skills }]">
+                        <div class="collapse-content-inner">
+                            <div v-if="mainSkills.length === 0" class="loading">
+                                暂无技能数据
+                            </div>
+                            <div class="skill-item" v-for="skill in mainSkills" :key="skill.id">
+                                <span class="skill-name">{{ skill.name }}</span>
+                                <span class="skill-value">{{ skill.value }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- 左侧分隔条 -->
+            <div class="resizer resizer-h" @mousedown="startResize('left', $event)"></div>
 
             <!-- 中间对话栏 -->
             <div class="dialogue-panel">
@@ -626,8 +930,11 @@
                 </div>
             </div>
 
+            <!-- 右侧分隔条 -->
+            <div class="resizer resizer-h" @mousedown="startResize('right', $event)"></div>
+
             <!-- 右侧面板 -->
-            <div class="right-panel">
+            <div class="right-panel" :style="{ width: rightPanelWidth + 'px' }">
                 <!-- 物品信息栏 -->
                 <div class="inventory-panel">
                     <h2>物品栏</h2>
@@ -662,8 +969,11 @@
                     </div>
                 </div>
 
+                <!-- 上下分隔条 -->
+                <div class="resizer resizer-v" @mousedown="startResize('vertical', $event)"></div>
+
                 <!-- 选项栏 -->
-                <div class="options-panel">
+                <div class="options-panel" :style="{ height: optionsPanelHeight + 'px' }">
                     <h2>可选行动</h2>
                     <div v-if="options.length > 0" class="option-list">
                         <button

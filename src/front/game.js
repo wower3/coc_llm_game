@@ -1,8 +1,38 @@
 const { createApp } = Vue;
 
+// API 配置
+const API_BASE_URL = 'http://localhost:5000/api';
+const LAUNCHER_URL = 'http://localhost:5001/launcher';
+const PLAYER_ID = '00000001';  // 默认玩家ID，可根据需要修改
+
 const App = {
     data() {
         return {
+            // API 配置
+            apiBaseUrl: API_BASE_URL,
+            launcherUrl: LAUNCHER_URL,
+            playerId: PLAYER_ID,
+            playerIdInput: PLAYER_ID,  // 输入框中的ID
+            isLoading: false,
+            errorMsg: '',  // 错误信息
+
+            // 服务状态
+            apiOnline: false,
+            serviceLoading: false,
+
+            // 面板宽度
+            leftPanelWidth: 290,
+            rightPanelWidth: 300,
+            optionsPanelHeight: 200,
+            isResizing: false,
+            resizeType: null,
+
+            // 折叠面板状态
+            sections: {
+                attrs: true,    // 基础属性默认展开
+                skills: true    // 技能列表默认展开
+            },
+
             // 当前章节和场景
             currentChapter: '第一章',
             currentScene: '场景1',
@@ -14,41 +44,30 @@ const App = {
             // 物品栏标签
             inventoryTab: 'weapons',
 
-            // 角色数据
+            // 角色数据（从数据库加载）
             character: {
-                name: '于得水',
-                occupation: '考古学家',
-                age: 33,
-                // 基础属性
-                str: 40,
-                con: 50,
-                siz: 75,
-                dex: 60,
-                app: 45,
-                int: 55,
-                pow: 65,
-                edu: 75,
-                // 状态值
-                hp: 12,
-                maxHp: 12,
-                san: 65,
-                maxSan: 65,
-                mp: 13,
-                maxMp: 13,
-                luck: 55
+                name: '加载中...',
+                sex: 'Male',
+                age: 0,
+                str: 0,
+                con: 0,
+                siz: 0,
+                dex: 0,
+                app: 0,
+                int: 0,
+                pow: 0,
+                edu: 0,
+                hp: 0,
+                maxHp: 0,
+                san: 0,
+                maxSan: 99,
+                mp: 0,
+                maxMp: 0,
+                luck: 0
             },
 
-            // 常用技能
-            mainSkills: [
-                { name: '侦查', value: 60 },
-                { name: '图书馆使用', value: 70 },
-                { name: '考古学', value: 60 },
-                { name: '历史', value: 50 },
-                { name: '话术', value: 55 },
-                { name: '闪避', value: 60 },
-                { name: '射击:手枪', value: 40 },
-                { name: '急救', value: 40 }
-            ],
+            // 技能列表（从数据库加载，数值>10的技能）
+            mainSkills: [],
 
             // 武器列表
             weapons: [
@@ -108,6 +127,186 @@ const App = {
     },
 
     methods: {
+        // 切换折叠面板
+        toggleSection(section) {
+            this.sections[section] = !this.sections[section];
+        },
+
+        // 开始拖动
+        startResize(type, event) {
+            this.isResizing = true;
+            this.resizeType = type;
+            document.addEventListener('mousemove', this.doResize);
+            document.addEventListener('mouseup', this.stopResize);
+            event.preventDefault();
+        },
+
+        // 拖动中
+        doResize(event) {
+            if (!this.isResizing) return;
+
+            if (this.resizeType === 'left') {
+                const newWidth = event.clientX;
+                if (newWidth >= 200 && newWidth <= 500) {
+                    this.leftPanelWidth = newWidth;
+                }
+            } else if (this.resizeType === 'right') {
+                const newWidth = window.innerWidth - event.clientX;
+                if (newWidth >= 200 && newWidth <= 500) {
+                    this.rightPanelWidth = newWidth;
+                }
+            } else if (this.resizeType === 'vertical') {
+                const rightPanel = document.querySelector('.right-panel');
+                if (rightPanel) {
+                    const rect = rightPanel.getBoundingClientRect();
+                    const newHeight = rect.bottom - event.clientY;
+                    if (newHeight >= 100 && newHeight <= 400) {
+                        this.optionsPanelHeight = newHeight;
+                    }
+                }
+            }
+        },
+
+        // 停止拖动
+        stopResize() {
+            this.isResizing = false;
+            this.resizeType = null;
+            document.removeEventListener('mousemove', this.doResize);
+            document.removeEventListener('mouseup', this.stopResize);
+        },
+
+        // 查询调查员
+        async searchPlayer() {
+            if (!this.playerIdInput.trim()) {
+                this.errorMsg = '请输入调查员ID';
+                return;
+            }
+            this.errorMsg = '';
+            this.playerId = this.playerIdInput.trim();
+            await this.loadPlayerData();
+            await this.loadSkillsData();
+        },
+
+        // 刷新当前调查员信息
+        async refreshPlayer() {
+            if (!this.playerId) {
+                this.errorMsg = '请先查询调查员';
+                return;
+            }
+            this.errorMsg = '';
+            await this.loadPlayerData();
+            await this.loadSkillsData();
+        },
+
+        // 检查API服务状态
+        async checkApiStatus() {
+            try {
+                const response = await fetch(`${this.apiBaseUrl.replace('/api', '')}/api/health`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000)
+                });
+                this.apiOnline = response.ok;
+            } catch (error) {
+                this.apiOnline = false;
+            }
+        },
+
+        // 启动API服务
+        async startApiService() {
+            this.serviceLoading = true;
+            try {
+                const response = await fetch(`${this.launcherUrl}/start`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    // 等待服务启动
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await this.checkApiStatus();
+                    if (this.apiOnline) {
+                        this.loadPlayerData();
+                        this.loadSkillsData();
+                    }
+                } else {
+                    alert('启动失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('无法连接启动器服务，请先运行 launcher.py');
+            }
+            this.serviceLoading = false;
+        },
+
+        // 停止API服务
+        async stopApiService() {
+            this.serviceLoading = true;
+            try {
+                const response = await fetch(`${this.launcherUrl}/stop`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    this.apiOnline = false;
+                }
+            } catch (error) {
+                alert('无法连接启动器服务');
+            }
+            this.serviceLoading = false;
+        },
+
+        // 从API加载玩家数据
+        async loadPlayerData() {
+            this.isLoading = true;
+            this.errorMsg = '';
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/player/${this.playerId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    this.character = {
+                        name: data.name,
+                        sex: data.sex,
+                        age: data.age,
+                        str: data.strength,
+                        con: data.constitution,
+                        siz: data.size,
+                        dex: data.dexterity,
+                        app: data.appearance,
+                        int: data.intelligence,
+                        pow: data.willpower,
+                        edu: data.education,
+                        hp: data.hit_points,
+                        maxHp: data.max_hp,
+                        san: data.sanity,
+                        maxSan: data.max_san,
+                        mp: data.magic_points,
+                        maxMp: data.max_mp,
+                        luck: data.luck
+                    };
+                } else {
+                    this.errorMsg = result.error || '未找到该调查员';
+                }
+            } catch (error) {
+                console.error('加载玩家数据失败:', error);
+                this.errorMsg = '网络错误，请检查API服务是否启动';
+            }
+            this.isLoading = false;
+        },
+
+        // 从API加载技能数据
+        async loadSkillsData() {
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/skills/${this.playerId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    this.mainSkills = result.data;
+                }
+            } catch (error) {
+                console.error('加载技能数据失败:', error);
+            }
+        },
+
         // 发送消息
         sendMessage() {
             if (!this.playerInput.trim()) return;
@@ -390,7 +589,23 @@ const App = {
     },
 
     mounted() {
-        // 初始化时滚动到底部
+        // 检查API服务状态
+        this.checkApiStatus();
+
+        // 定时检查服务状态（每10秒）
+        setInterval(() => {
+            this.checkApiStatus();
+        }, 10000);
+
+        // 如果API在线，加载数据
+        setTimeout(async () => {
+            if (this.apiOnline) {
+                this.loadPlayerData();
+                this.loadSkillsData();
+            }
+        }, 500);
+
+        // 滚动到底部
         this.$nextTick(() => {
             this.scrollToBottom();
         });

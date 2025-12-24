@@ -6,7 +6,13 @@
       "Bash(python -c \"import model; print(''model module imported successfully'')\")",
       "Bash(python test_connection.py)",
       "WebFetch(domain:python.langchain.com)",
-      "WebFetch(domain:docs.langchain.com)"
+      "WebFetch(domain:docs.langchain.com)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []
