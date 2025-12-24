@@ -1,0 +1,54 @@
+# === Python 编译产物 ===
+# 忽略所有层级目录下的 .pyc, .pyo, .pyd 文件
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/__pycache__/
+
+# === 虚拟环境 (非常重要) ===
+# 常见的虚拟环境目录名
+.venv/
+venv/
+env/
+ENV/
+bin/
+lib/
+# 如果你使用 conda
+.conda/
+
+# === 外部库与分发打包 ===
+# 忽略构建输出
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+manifest
+
+# === 单元测试与覆盖率 ===
+htmlcov/
+.tox/
+.noseresults
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# === 本地配置与日志 ===
+# 忽略本地环境变量文件
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# === IDE 与系统文件 ===
+# PyCharm
+.idea/
+# VS Code
+.vscode/
+# macOS 系统文件
+.DS_Store
