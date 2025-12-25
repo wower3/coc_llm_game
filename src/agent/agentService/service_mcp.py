@@ -159,21 +159,31 @@ class ThreadManager:
 
     def _load_scene_content(self, scene: str) -> str:
         """
-        从txt文件加载场景内容
+        从txt文件加载场景内容（通过文件名匹配）
 
-        :param scene: 场景关键词
-        :return: 场景内容文本
+        :param scene: 场景名称关键词
+        :return: 场景内容文本（文件完整内容）
         """
-        results = self.txt_search.search_files(scene, recursive=True)
+        import os
+
         scene_content = ""
-        for result in results:
-            if result['matches']:
-                match = result['matches'][0]
-                scene_content = match
+
+        # 递归遍历场景目录，搜索文件名包含场景名称的txt文件
+        for root, dirs, files in os.walk(self.scenes_dir):
+            for file in files:
+                if file.endswith('.txt') and scene in file:
+                    file_path = os.path.join(root, file)
+                    # 读取文件完整内容
+                    content = self.txt_search.loader.read_txt_file(file_path)
+                    if content:
+                        scene_content = content
+                        print(f"[场景加载] 找到场景文件: {file}")
+                        break
+            if scene_content:
                 break
 
         if not scene_content:
-            scene_content = f"（未找到场景 '{scene}' 的详细内容，请根据场景名称自由发挥）"
+            scene_content = f"（未找到文件名包含 '{scene}' 的场景文件，请根据场景名称自由发挥）"
 
         return scene_content
 

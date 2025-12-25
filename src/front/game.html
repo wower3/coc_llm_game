@@ -1100,7 +1100,8 @@
             <!-- 中间对话栏 -->
             <div class="dialogue-panel">
                 <div class="dialogue-header">
-                    <span>{{ currentSceneName }}</span>
+                    <span>{{ currentSceneName || '主线程' }}</span>
+                    <span v-if="sceneDepth > 0" style="margin-left: 10px; font-size: 12px; color: #888;">（深度: {{ sceneDepth }}）</span>
                 </div>
                 <div class="dialogue-content" ref="dialogueContent">
                     <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.type]">

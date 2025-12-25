@@ -40,7 +40,8 @@ const App = {
             // 当前章节和场景
             currentChapter: '第一章',
             currentScene: '场景1',
-            currentSceneName: '阿诺兹堡 - 墓地调查',
+            currentSceneName: '主线程',
+            sceneDepth: 0,  // 场景深度
 
             // 玩家输入
             playerInput: '',
@@ -363,6 +364,12 @@ const App = {
                         sender: '【游戏主持人】',
                         content: result.response
                     });
+
+                    // 更新场景信息（从API返回的scene_info）
+                    if (result.scene_info) {
+                        this.currentSceneName = result.scene_info.scene_name || result.scene_info.scene_path || '主线程';
+                        this.sceneDepth = result.scene_info.scene_depth || 0;
+                    }
                 } else {
                     this.messages.push({
                         type: 'system',

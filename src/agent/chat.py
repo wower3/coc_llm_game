@@ -1,11 +1,13 @@
 # 主对话循环模块
 from test_agent import agent, thread_manager
-
+from langchain.messages import HumanMessage, AIMessage, SystemMessage
 
 def main():
     print("欢迎来到克苏鲁神话角色扮演游戏!")
     print("输入 'exit' 或 'quit' 退出游戏")
     print(f"主线程ID: {thread_manager.main_thread_id[:8]}...\n")
+
+    messages = []
 
     while True:
         # 显示当前场景路径
@@ -18,6 +20,7 @@ def main():
         if user_input.lower() in {"exit", "quit"}:
             print("游戏副本结束，期待下次冒险再见！")
             break
+        messages.append(HumanMessage(content=user_input))
 
         # 获取当前线程ID用于记忆隔离
         current_thread_id = thread_manager.current_thread_id
@@ -28,7 +31,7 @@ def main():
 
         # 使用agent处理用户输入，传入thread_id实现记忆隔离
         response = agent.invoke(
-            {"messages": [{"role": "user", "content": user_input}]},
+            {"messages":messages},
             config
         )
         result = response["messages"][-1].content
