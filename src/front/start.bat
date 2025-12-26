@@ -41,11 +41,11 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5770 ^| findstr LISTENING 2^
 timeout /t 1 /nobreak >nul
 
 echo [1/4] 启动 API 服务 (FastAPI - 端口 5780)...
-start "API服务-5780" cmd /c "cd /d %PROJECT_ROOT% && call conda activate %CONDA_ENV% && python src/front/api.py"
+start "API服务-5780" cmd /c "cd /d %PROJECT_ROOT% && call conda activate %CONDA_ENV% && python src/adapter/api.py"
 timeout /t 2 /nobreak >nul
 
 echo [2/4] 启动 对话管理服务 (FastAPI - 端口 5781)...
-start "对话管理服务-5781" cmd /c "cd /d %PROJECT_ROOT% && call conda activate %CONDA_ENV% && python src/front/chat_launcher.py"
+start "对话管理服务-5781" cmd /c "cd /d %PROJECT_ROOT% && call conda activate %CONDA_ENV% && python src/adapter/chat_launcher.py"
 timeout /t 2 /nobreak >nul
 
 echo [3/4] 启动前端服务 (HTTP - 端口 5770)...

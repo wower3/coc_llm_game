@@ -1,8 +1,18 @@
 from typing import Dict, Any, Optional
 import uuid
+import os
 import dice.roll as roll
 from dice.model import model
-from load_txt_with_keyword import TxtKeywordSearch
+
+# 添加util路径
+import sys
+src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, src_dir)
+from util.load_txt_with_keyword import TxtKeywordSearch
+
+# 获取项目根目录下的scenes文件夹
+PROJECT_ROOT = os.path.dirname(src_dir)
+DEFAULT_SCENES_DIR = os.path.join(PROJECT_ROOT, "scenes")
 
 
 # 场景信息数据类
@@ -76,7 +86,9 @@ def get_scene_prompt(scene: str, scene_content: str) -> str:
 
 # 全局状态管理器（使用栈管理嵌套场景）
 class ThreadManager:
-    def __init__(self, scenes_dir: str = "./scenes/chapter1"):
+    def __init__(self, scenes_dir: str = None):
+        if scenes_dir is None:
+            scenes_dir = DEFAULT_SCENES_DIR
         self.main_thread_id = str(uuid.uuid4())
         self.current_thread_id = self.main_thread_id
         # 场景栈：支持嵌套场景
@@ -263,7 +275,7 @@ class McpService:
         """
         if self.thread_manager is None:
             # 兼容旧逻辑：直接返回场景内容
-            search = TxtKeywordSearch("./scenes/chapter1")
+            search = TxtKeywordSearch(DEFAULT_SCENES_DIR)
             results = search.search_files(scene, recursive=True)
             drama = ""
             for result in results:

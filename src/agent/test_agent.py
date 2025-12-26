@@ -23,8 +23,8 @@ from src.agent.agentService.service_mcp import ThreadManager, McpService, MAIN_P
 # 加载环境变量
 load_dotenv(override=True)
 
-# 创建全局线程管理器和MCP服务
-thread_manager = ThreadManager(scenes_dir="./scenes/chapter1")
+# 创建全局线程管理器和MCP服务（使用默认的scenes目录）
+thread_manager = ThreadManager()
 mcp_service = McpService(thread_manager=thread_manager)
 
 # 初始化骰子服务

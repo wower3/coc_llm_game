@@ -437,8 +437,10 @@ class TxtKeywordSearch:
 
 def main():
     """主函数示例"""
-    # 设置文件夹路径和关键字
-    folder_path = r"./scenes/chapter1"  # 相对路径
+    # 设置文件夹路径和关键字 - 使用项目根目录下的scenes文件夹
+    import os
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    folder_path = os.path.join(project_root, "scenes")
     keyword = "询问居民"
 
     print(f"正在加载文件夹 '{folder_path}' 中包含关键字 '{keyword}' 的txt文件...")
