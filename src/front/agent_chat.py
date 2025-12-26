@@ -3,8 +3,9 @@ COC 对话服务 API
 仅提供对话功能，所有agent逻辑都在test_agent.py中
 """
 
-from flask import Flask, jsonify, request, Blueprint
-from flask_cors import CORS
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import sys
 import os
 from datetime import datetime
@@ -14,16 +15,21 @@ from langchain.messages import HumanMessage, AIMessage, SystemMessage
 src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 agent_dir = os.path.join(src_dir, 'agent')
 sys.path.insert(0, src_dir)
-sys.path.insert(0, agent_dir)  # 添加agent目录以支持dice等相对导入
+sys.path.insert(0, agent_dir)
 
 # 从test_agent导入agent和thread_manager
-from agent.test_agent import agent, thread_manager
+from agent.test_agent import agent, thread_manager, checkpointer
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI(title="COC Chat API", description="COC 对话服务 API")
 
-# 创建chat蓝图
-chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
+# 允许跨域请求
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 系统日志存储
 system_logs = []
@@ -31,8 +37,13 @@ system_logs = []
 # Agent状态
 agent_ready = False
 
-# 对话历史 - 参照chat.py维护完整对话上下文
+# 对话历史
 messages = []
+
+
+# 请求模型
+class MessageRequest(BaseModel):
+    message: str
 
 
 def add_log(level: str, message: str):
@@ -43,176 +54,149 @@ def add_log(level: str, message: str):
         'message': message
     }
     system_logs.append(log_entry)
-    # 保持日志数量在100条以内
     if len(system_logs) > 100:
         system_logs.pop(0)
 
 
-@chat_bp.route('/health', methods=['GET'])
+@app.get('/chat/health')
 def health_check():
     """健康检查接口"""
-    return jsonify({
+    return {
         'success': True,
         'agent_ready': agent_ready,
         'message': 'COC 对话服务运行中'
-    })
+    }
 
 
-@chat_bp.route('/init', methods=['POST'])
+@app.post('/chat/init')
 def init_agent():
     """初始化Agent"""
     global agent_ready
     try:
-        # agent已在test_agent.py中初始化，这里只需标记为就绪
         agent_ready = True
         add_log('info', 'Agent初始化成功')
-        return jsonify({
+        return {
             'success': True,
             'message': 'Agent初始化成功',
             'thread_id': thread_manager.main_thread_id[:8]
-        })
+        }
     except Exception as e:
         add_log('error', f'Agent初始化失败: {str(e)}')
-        return jsonify({
-            'success': False,
-            'error': f'初始化失败: {str(e)}'
-        }), 500
+        raise HTTPException(status_code=500, detail=f'初始化失败: {str(e)}')
 
 
-@chat_bp.route('/send', methods=['POST'])
-def send_message():
+@app.post('/chat/send')
+def send_message(data: MessageRequest):
     """发送消息到Agent"""
     global agent_ready, messages
 
     if not agent_ready:
-        return jsonify({
-            'success': False,
-            'error': 'Agent未初始化，请先初始化'
-        }), 400
+        raise HTTPException(status_code=400, detail='Agent未初始化，请先初始化')
 
-    data = request.get_json()
-    if not data or 'message' not in data:
-        return jsonify({
-            'success': False,
-            'error': '缺少message参数'
-        }), 400
-
-    user_message = data['message'].strip()
+    user_message = data.message.strip()
     if not user_message:
-        return jsonify({
-            'success': False,
-            'error': '消息不能为空'
-        }), 400
+        raise HTTPException(status_code=400, detail='消息不能为空')
 
     try:
-        # 获取当前线程ID用于记忆隔离
         current_thread_id = thread_manager.current_thread_id
         config = {"configurable": {"thread_id": current_thread_id}}
-
         add_log('info', f'收到用户消息: {user_message[:50]}...')
 
-        # 使用HumanMessage构建消息并添加到对话历史
         messages.append(HumanMessage(content=user_message))
-
-        # 使用agent处理用户输入，传入完整的messages历史
-        response = agent.invoke(
-            {"messages": messages},
-            config
-        )
+        response = agent.invoke({"messages": messages}, config)
         result = response["messages"][-1].content
-
         add_log('info', f'Agent回复: {result[:50]}...')
 
-        # 返回响应和场景信息（参照chat.py的显示方式）
-        return jsonify({
+        return {
             'success': True,
             'response': result,
             'scene_info': {
-                'scene_name': thread_manager.current_scene,  # 当前场景名称
-                'scene_path': thread_manager.get_scene_path(),  # 完整场景路径
-                'scene_depth': thread_manager.scene_depth,  # 场景深度
+                'scene_name': thread_manager.current_scene,
+                'scene_path': thread_manager.get_scene_path(),
+                'scene_depth': thread_manager.scene_depth,
                 'in_scene': thread_manager.in_scene,
                 'thread_id': current_thread_id[:8]
             }
-        })
+        }
     except Exception as e:
         add_log('error', f'处理消息失败: {str(e)}')
-        return jsonify({
-            'success': False,
-            'error': f'处理消息失败: {str(e)}'
-        }), 500
+        raise HTTPException(status_code=500, detail=f'处理消息失败: {str(e)}')
 
 
-@chat_bp.route('/reset', methods=['POST'])
+@app.post('/chat/reset')
 def reset_agent():
     """重置Agent状态"""
     global agent_ready, messages
     try:
-        # 重置线程管理器到主线程
         thread_manager.scene_stack.clear()
-        thread_manager.in_scene = False
-        thread_manager.scene_depth = 0
-
-        # 清空对话历史
         messages = []
-
         add_log('info', 'Agent已重置，对话历史已清空')
-        return jsonify({
-            'success': True,
-            'message': 'Agent已重置到初始状态'
-        })
+        return {'success': True, 'message': 'Agent已重置到初始状态'}
     except Exception as e:
         add_log('error', f'重置失败: {str(e)}')
-        return jsonify({
-            'success': False,
-            'error': f'重置失败: {str(e)}'
-        }), 500
+        raise HTTPException(status_code=500, detail=f'重置失败: {str(e)}')
 
 
-@chat_bp.route('/scene', methods=['GET'])
+@app.post('/chat/reset-all')
+def reset_all_memory():
+    """重置所有线程的记忆（包括checkpointer中的历史）"""
+    global agent_ready, messages
+    try:
+        # 清空场景栈
+        thread_manager.scene_stack.clear()
+        # 清空当前对话历史
+        messages = []
+        # 清空checkpointer中的所有存储
+        if hasattr(checkpointer, 'storage'):
+            checkpointer.storage.clear()
+        # 重新生成主线程ID
+        import uuid
+        thread_manager.main_thread_id = str(uuid.uuid4())
+        thread_manager.current_thread_id = thread_manager.main_thread_id
+
+        add_log('info', '所有记忆已重置')
+        return {
+            'success': True,
+            'message': '所有记忆已重置',
+            'new_thread_id': thread_manager.main_thread_id[:8]
+        }
+    except Exception as e:
+        add_log('error', f'重置记忆失败: {str(e)}')
+        raise HTTPException(status_code=500, detail=f'重置记忆失败: {str(e)}')
+
+
+@app.get('/chat/scene')
 def get_scene_info():
     """获取当前场景信息"""
     try:
-        return jsonify({
+        return {
             'success': True,
-            'scene_name': thread_manager.current_scene,  # 当前场景名称
-            'scene_path': thread_manager.get_scene_path(),  # 完整场景路径
-            'scene_depth': thread_manager.scene_depth,  # 场景深度
+            'scene_name': thread_manager.current_scene,
+            'scene_path': thread_manager.get_scene_path(),
+            'scene_depth': thread_manager.scene_depth,
             'in_scene': thread_manager.in_scene
-        })
+        }
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@chat_bp.route('/logs', methods=['GET'])
+@app.get('/chat/logs')
 def get_logs():
     """获取系统日志"""
-    return jsonify({
-        'success': True,
-        'logs': system_logs
-    })
+    return {'success': True, 'logs': system_logs}
 
 
-@chat_bp.route('/logs/clear', methods=['POST'])
+@app.post('/chat/logs/clear')
 def clear_logs():
     """清空系统日志"""
     global system_logs
     system_logs = []
-    return jsonify({
-        'success': True,
-        'message': '日志已清空'
-    })
-
-
-# 注册蓝图
-app.register_blueprint(chat_bp)
+    return {'success': True, 'message': '日志已清空'}
 
 
 if __name__ == '__main__':
+    import uvicorn
     print("启动 COC 对话服务...")
-    print("访问 http://localhost:5002/chat/health 检查服务状态")
+    print("访问 http://localhost:5782/chat/health 检查服务状态")
     add_log('info', '对话服务启动')
-    app.run(host='0.0.0.0', port=5002, debug=False)
+    uvicorn.run(app, host='0.0.0.0', port=5782)

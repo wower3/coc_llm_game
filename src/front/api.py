@@ -3,8 +3,8 @@ COC 跑团游戏后端 API 服务
 提供角色信息、技能数据的查询接口
 """
 
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import sys
 import os
 
@@ -13,32 +13,37 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.dice.model import DataContainer
 
-app = Flask(__name__)
-CORS(app)  # 允许跨域请求
+app = FastAPI(title="COC API", description="COC 跑团游戏后端 API 服务")
+
+# 允许跨域请求
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 数据库连接实例
 db = DataContainer()
 
 
-@app.route('/api/player/<player_id>', methods=['GET'])
-def get_player(player_id):
+@app.get('/api/player/{player_id}')
+def get_player(player_id: str):
     """获取玩家基本信息"""
     try:
-        # 直接使用 SQL 查询，避免 Pydantic 模型验证问题
         sql = f"SELECT * FROM players WHERE id = '{player_id}'"
         results = db._execute_query(sql)
 
         if not results:
-            return jsonify({'success': False, 'error': '未找到该调查员'}), 404
+            raise HTTPException(status_code=404, detail='未找到该调查员')
 
         player = results[0]
-
-        # 计算派生属性
         con = player.get('constitution', 0) or 0
         siz = player.get('size', 0) or 0
         pow_val = player.get('willpower', 0) or 0
 
-        return jsonify({
+        return {
             'success': True,
             'data': {
                 'id': player.get('id'),
@@ -65,26 +70,25 @@ def get_player(player_id):
                 'movement': player.get('movement', 0),
                 'occupation_id': player.get('occupation_id')
             }
-        })
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route('/api/skills/<player_id>', methods=['GET'])
-def get_skills(player_id):
+@app.get('/api/skills/{player_id}')
+def get_skills(player_id: str):
     """获取玩家技能信息（数值大于10的技能）"""
     try:
         skills_data = db.get_skill_card(player_id)
         skills_dict = skills_data.model_dump()
-
-        # 获取所有技能的中文名映射
         chinese_names = get_all_chinese_names()
 
-        # 筛选数值大于10的技能
         filtered_skills = []
         for key, value in skills_dict.items():
             if key.startswith('skill_') and value is not None and value > 10:
-                skill_id = key  # skill_001 格式
+                skill_id = key
                 skill_name = chinese_names.get(skill_id, skill_id)
                 filtered_skills.append({
                     'id': skill_id,
@@ -92,15 +96,10 @@ def get_skills(player_id):
                     'value': value
                 })
 
-        # 按数值降序排序
         filtered_skills.sort(key=lambda x: x['value'], reverse=True)
-
-        return jsonify({
-            'success': True,
-            'data': filtered_skills
-        })
+        return {'success': True, 'data': filtered_skills}
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def get_all_chinese_names():
@@ -110,23 +109,24 @@ def get_all_chinese_names():
     return {row['id']: row['name'] for row in results}
 
 
-@app.route('/api/chinese_name/<skill_id>', methods=['GET'])
-def get_chinese_name(skill_id):
+@app.get('/api/chinese_name/{skill_id}')
+def get_chinese_name(skill_id: str):
     """获取单个技能的中文名"""
     try:
         name = db.get_id(skill_id)
-        return jsonify({'success': True, 'data': {'id': skill_id, 'name': name}})
+        return {'success': True, 'data': {'id': skill_id, 'name': name}}
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route('/api/health', methods=['GET'])
+@app.get('/api/health')
 def health_check():
     """健康检查接口"""
-    return jsonify({'status': 'ok', 'message': 'COC API 服务运行中'})
+    return {'status': 'ok', 'message': 'COC API 服务运行中'}
 
 
 if __name__ == '__main__':
+    import uvicorn
     print("启动 COC 跑团游戏 API 服务...")
-    print("访问 http://localhost:5000/api/health 检查服务状态")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    print("访问 http://localhost:5780/api/health 检查服务状态")
+    uvicorn.run(app, host='0.0.0.0', port=5780)

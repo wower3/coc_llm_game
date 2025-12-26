@@ -1,19 +1,26 @@
 """
 COC 对话服务启动器
 用于管理对话服务(agent_chat.py)的启动和关闭
-运行在端口5003，管理端口5002的对话服务
+运行在端口5781，管理端口5782的对话服务
 """
 
 import subprocess
 import sys
 import os
-from flask import Flask, jsonify
-from flask_cors import CORS
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import time
 import socket
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI(title="COC Chat Launcher", description="COC 对话服务启动器")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 全局变量存储对话服务进程
 chat_process = None
@@ -27,7 +34,8 @@ chat_status = {
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 AGENT_DIR = os.path.join(os.path.dirname(CURRENT_DIR), 'agent')  # src/agent目录
 CHAT_SCRIPT = os.path.join(CURRENT_DIR, 'agent_chat.py')
-CHAT_PORT = 5002
+CHAT_PORT = 5782
+CONDA_ENV = 'python20251006'
 
 
 def is_port_in_use(port):
@@ -57,7 +65,7 @@ def kill_process_on_port(port):
     return False
 
 
-@app.route('/launcher/status', methods=['GET'])
+@app.get('/launcher/status')
 def get_status():
     """获取对话服务状态"""
     global chat_process, chat_status
@@ -69,107 +77,78 @@ def get_status():
         chat_status['pid'] = None
         chat_process = None
 
-    return jsonify({
-        'success': True,
-        'data': chat_status
-    })
+    return {'success': True, 'data': chat_status}
 
 
-@app.route('/launcher/start', methods=['POST'])
+@app.post('/launcher/start')
 def start_chat():
     """启动对话服务"""
     global chat_process, chat_status
 
     if chat_status['running'] or is_port_in_use(CHAT_PORT):
         chat_status['running'] = True
-        return jsonify({
-            'success': True,
-            'message': '对话服务已在运行中'
-        })
+        return {'success': True, 'message': '对话服务已在运行中'}
 
     try:
-        # 启动对话服务，工作目录设为agent目录
+        # 使用cmd激活conda环境后启动
+        cmd = f'conda activate {CONDA_ENV} && python "{CHAT_SCRIPT}"'
         chat_process = subprocess.Popen(
-            [sys.executable, CHAT_SCRIPT],
+            cmd,
             cwd=AGENT_DIR,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            shell=True,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
         )
-
-        # 等待服务启动
-        time.sleep(2)
+        time.sleep(3)
 
         if chat_process.poll() is None:
             chat_status['running'] = True
             chat_status['pid'] = chat_process.pid
             chat_status['start_time'] = time.strftime('%Y-%m-%d %H:%M:%S')
-
-            return jsonify({
-                'success': True,
-                'message': '对话服务已启动',
-                'data': chat_status
-            })
+            return {'success': True, 'message': '对话服务已启动', 'data': chat_status}
         else:
             stderr = chat_process.stderr.read().decode('utf-8', errors='ignore')
-            return jsonify({
-                'success': False,
-                'error': f'对话服务启动失败: {stderr}'
-            })
-
+            return {'success': False, 'error': f'对话服务启动失败: {stderr}'}
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        return {'success': False, 'error': str(e)}
 
 
-@app.route('/launcher/stop', methods=['POST'])
+@app.post('/launcher/stop')
 def stop_chat():
     """停止对话服务"""
     global chat_process, chat_status
 
     if not is_port_in_use(CHAT_PORT):
-        return jsonify({
-            'success': False,
-            'error': '对话服务未在运行'
-        })
+        return {'success': False, 'error': '对话服务未在运行'}
 
     try:
         kill_process_on_port(CHAT_PORT)
         time.sleep(1)
-
         chat_status['running'] = False
         chat_status['pid'] = None
         chat_process = None
-
-        return jsonify({
-            'success': True,
-            'message': '对话服务已停止'
-        })
-
+        return {'success': True, 'message': '对话服务已停止'}
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        return {'success': False, 'error': str(e)}
 
 
-@app.route('/launcher/health', methods=['GET'])
+@app.get('/launcher/health')
 def health():
     """启动器健康检查"""
-    return jsonify({'status': 'ok', 'message': '对话管理服务运行中'})
+    return {'status': 'ok', 'message': '对话管理服务运行中'}
 
 
 if __name__ == '__main__':
     import io
+    import uvicorn
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
     print("=" * 50)
     print("COC 对话服务管理器")
     print("=" * 50)
-    print(f"管理服务: http://localhost:5003")
-    print(f"对话服务: http://localhost:5002")
+    print(f"管理服务: http://localhost:5781")
+    print(f"对话服务: http://localhost:5782")
     print("=" * 50)
 
-    app.run(host='0.0.0.0', port=5003, debug=False)
+    uvicorn.run(app, host='0.0.0.0', port=5781)

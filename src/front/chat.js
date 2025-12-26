@@ -6,8 +6,8 @@
 
 const ChatModule = {
     // 配置
-    CHAT_API_URL: 'http://localhost:5002/chat',
-    LAUNCHER_URL: 'http://localhost:5003/launcher',
+    CHAT_API_URL: 'http://localhost:5782/chat',
+    LAUNCHER_URL: 'http://localhost:5781/launcher',
 
     // 状态
     chatOnline: false,
@@ -41,17 +41,21 @@ const ChatModule = {
     async initAgent() {
         this.chatLoading = true;
         try {
+            console.log('[ChatModule] 正在初始化Agent, URL:', `${this.CHAT_API_URL}/init`);
             const response = await fetch(`${this.CHAT_API_URL}/init`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
+            console.log('[ChatModule] 响应状态:', response.status);
             const result = await response.json();
+            console.log('[ChatModule] 响应内容:', result);
             if (result.success) {
                 this.chatOnline = true;
             }
             return result;
         } catch (error) {
-            return { success: false, error: '无法连接到对话服务' };
+            console.error('[ChatModule] initAgent错误:', error);
+            return { success: false, error: '无法连接到对话服务: ' + error.message };
         } finally {
             this.chatLoading = false;
         }
@@ -102,6 +106,26 @@ const ChatModule = {
             return result;
         } catch (error) {
             return { success: false, error: '重置失败: ' + error.message };
+        } finally {
+            this.chatLoading = false;
+        }
+    },
+
+    /**
+     * 重置所有记忆（包括所有线程的历史）
+     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+     */
+    async resetAllMemory() {
+        this.chatLoading = true;
+        try {
+            const response = await fetch(`${this.CHAT_API_URL}/reset-all`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            return { success: false, error: '重置记忆失败: ' + error.message };
         } finally {
             this.chatLoading = false;
         }
@@ -179,12 +203,17 @@ const ChatModule = {
      */
     async startService() {
         try {
+            console.log('[ChatModule] 正在启动服务, URL:', `${this.LAUNCHER_URL}/start`);
             const response = await fetch(`${this.LAUNCHER_URL}/start`, {
                 method: 'POST'
             });
-            return await response.json();
+            console.log('[ChatModule] startService响应状态:', response.status);
+            const result = await response.json();
+            console.log('[ChatModule] startService响应内容:', result);
+            return result;
         } catch (error) {
-            return { success: false, error: '无法连接管理服务' };
+            console.error('[ChatModule] startService错误:', error);
+            return { success: false, error: '无法连接管理服务: ' + error.message };
         }
     },
 

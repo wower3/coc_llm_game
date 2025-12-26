@@ -1,7 +1,7 @@
 const { createApp } = Vue;
 
 // API 配置
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5780/api';
 const PLAYER_ID = '00000001';  // 默认玩家ID，可根据需要修改
 
 const App = {
@@ -198,6 +198,11 @@ const App = {
             try {
                 const online = await ChatModule.checkStatus();
                 this.chatOnline = online;
+                // 如果服务在线且agent已就绪，同步启用对话功能
+                if (online) {
+                    this.chatEnabled = true;
+                    ChatModule.enable();
+                }
             } catch (error) {
                 this.chatOnline = false;
             }
@@ -215,8 +220,8 @@ const App = {
                     return;
                 }
 
-                // 等待服务就绪
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // 等待服务就绪（增加等待时间）
+                await new Promise(resolve => setTimeout(resolve, 8000));
 
                 // 初始化 Agent
                 const initResult = await ChatModule.initAgent();
@@ -225,7 +230,7 @@ const App = {
                     this.chatEnabled = true;
                     ChatModule.enable();
                 } else {
-                    alert('初始化Agent失败: ' + (initResult.error || '未知错误'));
+                    alert('初始化Agent失败: ' + (initResult.error || initResult.detail || '未知错误'));
                 }
             } catch (error) {
                 alert('无法连接管理服务');
@@ -243,6 +248,28 @@ const App = {
                 ChatModule.disable();
             } catch (error) {
                 console.error('停止服务失败:', error);
+            }
+            this.chatLoading = false;
+        },
+
+        // 重置所有记忆
+        async resetAllMemory() {
+            if (!confirm('确定要重置所有记忆吗？这将清除所有对话历史。')) {
+                return;
+            }
+            this.chatLoading = true;
+            try {
+                const result = await ChatModule.resetAllMemory();
+                if (result.success) {
+                    this.messages = [{ type: 'system', content: '—— 记忆已重置 ——' }];
+                    this.currentSceneName = '主线程';
+                    this.sceneDepth = 0;
+                    alert('所有记忆已重置');
+                } else {
+                    alert('重置失败: ' + (result.error || result.detail || '未知错误'));
+                }
+            } catch (error) {
+                alert('重置失败: ' + error.message);
             }
             this.chatLoading = false;
         },

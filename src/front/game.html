@@ -791,6 +791,15 @@
             background: #666;
         }
 
+        .btn-chat-reset {
+            background: #e67e22;
+            color: #fff;
+        }
+
+        .btn-chat-reset:hover {
+            background: #d35400;
+        }
+
         .btn-chat:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -950,6 +959,12 @@
                         @click="stopChat"
                         :disabled="chatLoading"
                     >关闭对话</button>
+                    <button
+                        v-if="chatEnabled"
+                        class="btn-chat btn-chat-reset"
+                        @click="resetAllMemory"
+                        :disabled="chatLoading"
+                    >重置记忆</button>
                 </div>
                 <span>|</span>
                 <span>章节: {{ currentChapter }}</span>
