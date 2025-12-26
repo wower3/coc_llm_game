@@ -729,6 +729,193 @@
         .resizer:active {
             background: #e94560;
         }
+
+        /* 对话服务控制样式 */
+        .chat-service-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid #0f3460;
+        }
+
+        .chat-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .chat-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .chat-status-dot.online {
+            background: #667eea;
+            box-shadow: 0 0 5px #667eea;
+        }
+
+        .chat-status-dot.offline {
+            background: #888;
+            box-shadow: 0 0 5px #888;
+        }
+
+        .btn-chat {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-chat-start {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-chat-start:hover {
+            background: #764ba2;
+        }
+
+        .btn-chat-stop {
+            background: #888;
+            color: #fff;
+        }
+
+        .btn-chat-stop:hover {
+            background: #666;
+        }
+
+        .btn-chat:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* AI回复等待动画 */
+        .ai-thinking {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            margin-bottom: 15px;
+        }
+
+        .ai-thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .ai-thinking-dots span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: thinking 1.4s infinite ease-in-out both;
+        }
+
+        .ai-thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .ai-thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .ai-thinking-dots span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* 日志弹窗样式 */
+        .logs-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .logs-container {
+            width: 700px;
+            max-height: 80vh;
+            background: #16213e;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-header h3 {
+            color: #e94560;
+            margin: 0;
+        }
+
+        .logs-header-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .log-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .log-item.user {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 3px solid #667eea;
+        }
+
+        .log-item.agent {
+            background: rgba(78, 205, 196, 0.2);
+            border-left: 3px solid #4ecdc4;
+        }
+
+        .log-item.system {
+            background: rgba(233, 69, 96, 0.2);
+            border-left: 3px solid #e94560;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+
+        .log-type {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .log-type.user { color: #667eea; }
+        .log-type.agent { color: #4ecdc4; }
+        .log-type.system { color: #e94560; }
     </style>
 </head>
 <body>
@@ -742,26 +929,27 @@
                 <div class="menu-item" @click="showRules">规则</div>
                 <div class="menu-item" @click="saveGame">存档</div>
                 <div class="menu-item" @click="loadGame">读档</div>
+                <div class="menu-item" @click="showLogs">系统日志</div>
             </div>
             <div class="menu-right">
-                <!-- 服务控制 -->
-                <div class="service-control">
-                    <div class="service-status">
-                        <span :class="['status-dot', apiOnline ? 'online' : 'offline']"></span>
-                        <span>{{ apiOnline ? 'API在线' : 'API离线' }}</span>
+                <!-- 对话服务控制 -->
+                <div class="chat-service-control">
+                    <div class="chat-status">
+                        <span :class="['chat-status-dot', chatOnline ? 'online' : 'offline']"></span>
+                        <span>{{ chatOnline ? 'AI对话' : 'AI离线' }}</span>
                     </div>
                     <button
-                        v-if="!apiOnline"
-                        class="btn-service btn-start"
-                        @click="startApiService"
-                        :disabled="serviceLoading"
-                    >启动服务</button>
+                        v-if="!chatEnabled"
+                        class="btn-chat btn-chat-start"
+                        @click="startChat"
+                        :disabled="chatLoading"
+                    >开启对话</button>
                     <button
                         v-else
-                        class="btn-service btn-stop"
-                        @click="stopApiService"
-                        :disabled="serviceLoading"
-                    >停止服务</button>
+                        class="btn-chat btn-chat-stop"
+                        @click="stopChat"
+                        :disabled="chatLoading"
+                    >关闭对话</button>
                 </div>
                 <span>|</span>
                 <span>章节: {{ currentChapter }}</span>
@@ -912,12 +1100,22 @@
             <!-- 中间对话栏 -->
             <div class="dialogue-panel">
                 <div class="dialogue-header">
-                    <span>{{ currentSceneName }}</span>
+                    <span>{{ currentSceneName || '主线程' }}</span>
+                    <span v-if="sceneDepth > 0" style="margin-left: 10px; font-size: 12px; color: #888;">（深度: {{ sceneDepth }}）</span>
                 </div>
                 <div class="dialogue-content" ref="dialogueContent">
                     <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.type]">
                         <div v-if="msg.sender" class="sender">{{ msg.sender }}</div>
                         <div class="content">{{ msg.content }}</div>
+                    </div>
+                    <!-- AI思考中动画 -->
+                    <div v-if="isWaitingAI" class="ai-thinking">
+                        <div class="ai-thinking-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span style="color: #667eea; font-size: 13px;">AI正在思考...</span>
                     </div>
                 </div>
                 <div class="dialogue-input">
@@ -992,8 +1190,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- 日志弹窗 -->
+        <div v-if="logsVisible" class="logs-modal" @click.self="logsVisible = false">
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h3>系统日志</h3>
+                    <div class="logs-header-btns">
+                        <button class="btn-chat btn-chat-start" @click="refreshLogs">刷新</button>
+                        <button class="btn-chat btn-chat-stop" @click="clearLogs">清空</button>
+                        <button class="btn-chat" style="background:#888" @click="logsVisible = false">关闭</button>
+                    </div>
+                </div>
+                <div class="logs-content">
+                    <div v-if="logs.length === 0" style="color:#888;text-align:center;padding:20px;">
+                        暂无日志
+                    </div>
+                    <div v-for="(log, index) in logs" :key="index" :class="['log-item', log.type]">
+                        <span class="log-time">[{{ log.time }}]</span>
+                        <span :class="['log-type', log.type]">{{ log.type.toUpperCase() }}</span>
+                        <span>{{ log.content }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <script src="./chat.js"></script>
     <script src="./game.js"></script>
 </body>
 </html>

@@ -51,7 +51,7 @@ def roll_dice_tool(expression: str, is_hidden: bool = False) -> str:
     """
     执行一个标准的骰子投掷表达式。
 
-    例如，当用户说“丢个2d10+5”或“.r 2d10+5”时，LLM应调用此函数。
+    例如，当用户说"丢个2d10+5"或".r 2d10+5"时，LLM应调用此函数。
 
     :param expression: 骰子表达式字符串，例如 "2d10+5" 或 "3d6"。
     :param is_hidden: 是否为暗骰。如果是，结果应只对调用者可见，默认不需要传该参数。
@@ -66,10 +66,10 @@ def roll_attribute_check_tool(user_id: str, attribute_name: str, target_value: O
     """
     对用户的某个属性或技能进行检定（1d100）。
 
-    例如，当用户说“进行一次力量检定”，“进行一次说服检定”，“.ra 力量”，“.ra 说服”等类似请求时，LLM应调用此函数。
+    例如，当用户说"进行一次力量检定"，"进行一次说服检定"，".ra 力量"，".ra 说服"等类似请求时，LLM应调用此函数。
 
     :param user_id: 执行检定的用户ID，用于查找角色卡。
-    :param attribute_name: 要检定的属性或技能名称，例如 "力量", "侦查"，“图书馆使用”，“闪避”。
+    :param attribute_name: 要检定的属性或技能名称，例如 "力量", "侦查"，"图书馆使用"，"闪避"。
     :param target_value: (可选) 检定的目标值。默认不提供，将自动从用户的角色卡中查找。
     :return: 包含检定结果、目标值、成功等级的字典。
     """
@@ -81,7 +81,7 @@ def roll_sanity_check_tool(user_id: str, success_penalty: str, failure_penalty: 
     """
     为用户执行一次理智检定（Sanity Check）。
 
-    例如，当用户说“sc 1/1d6”或“对理智值进行检定，惩罚为1/1d6”时，LLM应解析出参数并调用此函数。
+    例如，当用户说"sc 1/1d6"或"对理智值进行检定，惩罚为1/1d6"时，LLM应解析出参数并调用此函数。
 
     :param user_id: 执行检定的用户ID。
     :param success_penalty: 检定成功时理智惩罚的骰子表达式, 例如 "1"。
@@ -158,47 +158,3 @@ agent = create_agent(
     middleware=[dynamic_system_prompt],
     checkpointer=checkpointer
 )
-
-
-# 主对话循环
-def main():
-    print("🎲 欢迎来到克苏鲁神话角色扮演游戏!")
-    print("🔹 输入 'exit' 或 'quit' 退出游戏")
-    print(f"🔹 主线程ID: {thread_manager.main_thread_id[:8]}...\n")
-
-    while True:
-        # 显示当前场景路径
-        scene_path = thread_manager.get_scene_path()
-        depth = thread_manager.scene_depth
-        if thread_manager.in_scene:
-            print(f"📍 场景路径: {scene_path} (深度: {depth})")
-
-        user_input = input("👤 玩家: ")
-        if user_input.lower() in {"exit", "quit"}:
-            print("游戏副本结束，期待下次冒险再见！")
-            break
-
-        # 获取当前线程ID用于记忆隔离
-        current_thread_id = thread_manager.current_thread_id
-        config = {"configurable": {"thread_id": current_thread_id}}
-
-        # 显示AI回复
-        print("🤖 游戏主持人:", end="", flush=True)
-
-        # 使用agent处理用户输入，传入thread_id实现记忆隔离
-        response = agent.invoke(
-            {"messages": [{"role": "user", "content": user_input}]},
-            config
-        )
-        result = response["messages"][-1].content
-
-        print(result)
-        print("\n" + "-" * 40)  # 分隔线
-
-        # 显示当前线程信息（调试用）
-        print(f"📝 线程: {thread_manager.current_thread_id[:8]}... | 场景深度: {thread_manager.scene_depth} | 路径: {thread_manager.get_scene_path()}")
-        print("-" * 40 + "\n")
-
-
-if __name__ == "__main__":
-    main()

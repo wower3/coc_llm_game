@@ -2,7 +2,6 @@ const { createApp } = Vue;
 
 // API 配置
 const API_BASE_URL = 'http://localhost:5000/api';
-const LAUNCHER_URL = 'http://localhost:5001/launcher';
 const PLAYER_ID = '00000001';  // 默认玩家ID，可根据需要修改
 
 const App = {
@@ -10,15 +9,20 @@ const App = {
         return {
             // API 配置
             apiBaseUrl: API_BASE_URL,
-            launcherUrl: LAUNCHER_URL,
             playerId: PLAYER_ID,
             playerIdInput: PLAYER_ID,  // 输入框中的ID
             isLoading: false,
             errorMsg: '',  // 错误信息
 
-            // 服务状态
-            apiOnline: false,
-            serviceLoading: false,
+            // 对话服务状态
+            chatOnline: false,
+            chatLoading: false,
+            chatEnabled: false,
+            isWaitingAI: false,
+
+            // 日志相关
+            logsVisible: false,
+            logs: [],
 
             // 面板宽度
             leftPanelWidth: 290,
@@ -36,7 +40,8 @@ const App = {
             // 当前章节和场景
             currentChapter: '第一章',
             currentScene: '场景1',
-            currentSceneName: '阿诺兹堡 - 墓地调查',
+            currentSceneName: '主线程',
+            sceneDepth: 0,  // 场景深度
 
             // 玩家输入
             playerInput: '',
@@ -103,16 +108,6 @@ const App = {
                 {
                     type: 'system',
                     content: '—— 游戏开始 ——'
-                },
-                {
-                    type: 'narrator',
-                    sender: '【旁白】',
-                    content: '1920年秋，你来到了阿诺兹堡，一个位于新英格兰的宁静小镇。最近这里发生了一些奇怪的事件——墓地里传出诡异的声响，有人声称看到了在墓碑间游荡的人影。作为一名考古学家，你被当地的历史学会邀请来调查这些传闻。'
-                },
-                {
-                    type: 'narrator',
-                    sender: '【旁白】',
-                    content: '你站在墓地的入口处，秋风吹过，枯叶在脚边打着旋。远处，一座古老的看守人小屋静静地矗立着。墓地里的墓碑错落有致，有些已经相当古老，上面的文字几乎难以辨认。'
                 }
             ],
 
@@ -198,59 +193,78 @@ const App = {
             await this.loadSkillsData();
         },
 
-        // 检查API服务状态
-        async checkApiStatus() {
+        // 检查对话服务状态
+        async checkChatStatus() {
             try {
-                const response = await fetch(`${this.apiBaseUrl.replace('/api', '')}/api/health`, {
-                    method: 'GET',
-                    signal: AbortSignal.timeout(2000)
-                });
-                this.apiOnline = response.ok;
+                const online = await ChatModule.checkStatus();
+                this.chatOnline = online;
             } catch (error) {
-                this.apiOnline = false;
+                this.chatOnline = false;
             }
         },
 
-        // 启动API服务
-        async startApiService() {
-            this.serviceLoading = true;
+        // 开启对话功能
+        async startChat() {
+            this.chatLoading = true;
             try {
-                const response = await fetch(`${this.launcherUrl}/start`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-                if (result.success) {
-                    // 等待服务启动
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    await this.checkApiStatus();
-                    if (this.apiOnline) {
-                        this.loadPlayerData();
-                        this.loadSkillsData();
-                    }
+                // 先启动服务
+                const startResult = await ChatModule.startService();
+                if (!startResult.success) {
+                    alert('启动服务失败: ' + (startResult.error || '未知错误'));
+                    this.chatLoading = false;
+                    return;
+                }
+
+                // 等待服务就绪
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // 初始化 Agent
+                const initResult = await ChatModule.initAgent();
+                if (initResult.success) {
+                    this.chatOnline = true;
+                    this.chatEnabled = true;
+                    ChatModule.enable();
                 } else {
-                    alert('启动失败: ' + result.error);
+                    alert('初始化Agent失败: ' + (initResult.error || '未知错误'));
                 }
             } catch (error) {
-                alert('无法连接启动器服务，请先运行 launcher.py');
+                alert('无法连接管理服务');
             }
-            this.serviceLoading = false;
+            this.chatLoading = false;
         },
 
-        // 停止API服务
-        async stopApiService() {
-            this.serviceLoading = true;
+        // 关闭对话功能
+        async stopChat() {
+            this.chatLoading = true;
             try {
-                const response = await fetch(`${this.launcherUrl}/stop`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-                if (result.success) {
-                    this.apiOnline = false;
-                }
+                await ChatModule.stopService();
+                this.chatEnabled = false;
+                this.chatOnline = false;
+                ChatModule.disable();
             } catch (error) {
-                alert('无法连接启动器服务');
+                console.error('停止服务失败:', error);
             }
-            this.serviceLoading = false;
+            this.chatLoading = false;
+        },
+
+        // 显示日志弹窗
+        async showLogs() {
+            this.logsVisible = true;
+            await this.refreshLogs();
+        },
+
+        // 刷新日志
+        async refreshLogs() {
+            const result = await ChatModule.getLogs();
+            if (result.success) {
+                this.logs = result.logs || [];
+            }
+        },
+
+        // 清空日志
+        async clearLogs() {
+            await ChatModule.clearLogs();
+            await this.refreshLogs();
         },
 
         // 从API加载玩家数据
@@ -308,7 +322,7 @@ const App = {
         },
 
         // 发送消息
-        sendMessage() {
+        async sendMessage() {
             if (!this.playerInput.trim()) return;
 
             // 添加玩家消息
@@ -318,13 +332,58 @@ const App = {
                 content: this.playerInput
             });
 
-            // 处理玩家输入（这里可以接入后端AI）
-            this.processPlayerInput(this.playerInput);
-
-            // 清空输入
+            const userInput = this.playerInput;
             this.playerInput = '';
 
             // 滚动到底部
+            this.$nextTick(() => {
+                this.scrollToBottom();
+            });
+
+            // 如果对话功能已启用，发送到AI
+            if (this.chatEnabled && this.chatOnline) {
+                await this.sendToAI(userInput);
+            } else {
+                // 原有的处理逻辑
+                this.processPlayerInput(userInput);
+            }
+        },
+
+        // 发送消息到AI
+        async sendToAI(message) {
+            this.isWaitingAI = true;
+            this.$nextTick(() => {
+                this.scrollToBottom();
+            });
+
+            try {
+                const result = await ChatModule.sendMessage(message);
+                if (result.success) {
+                    this.messages.push({
+                        type: 'narrator',
+                        sender: '【游戏主持人】',
+                        content: result.response
+                    });
+
+                    // 更新场景信息（从API返回的scene_info）
+                    if (result.scene_info) {
+                        this.currentSceneName = result.scene_info.scene_name || result.scene_info.scene_path || '主线程';
+                        this.sceneDepth = result.scene_info.scene_depth || 0;
+                    }
+                } else {
+                    this.messages.push({
+                        type: 'system',
+                        content: 'AI回复失败: ' + result.error
+                    });
+                }
+            } catch (error) {
+                this.messages.push({
+                    type: 'system',
+                    content: '发送消息失败: ' + error.message
+                });
+            }
+
+            this.isWaitingAI = false;
             this.$nextTick(() => {
                 this.scrollToBottom();
             });
@@ -589,21 +648,17 @@ const App = {
     },
 
     mounted() {
-        // 检查API服务状态
-        this.checkApiStatus();
+        // 检查对话服务状态
+        this.checkChatStatus();
 
-        // 定时检查服务状态（每10秒）
+        // 定时检查对话服务状态（每10秒）
         setInterval(() => {
-            this.checkApiStatus();
+            this.checkChatStatus();
         }, 10000);
 
-        // 如果API在线，加载数据
-        setTimeout(async () => {
-            if (this.apiOnline) {
-                this.loadPlayerData();
-                this.loadSkillsData();
-            }
-        }, 500);
+        // 加载玩家数据
+        this.loadPlayerData();
+        this.loadSkillsData();
 
         // 滚动到底部
         this.$nextTick(() => {
