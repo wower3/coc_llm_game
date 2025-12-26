@@ -16,7 +16,6 @@ class RollDiceRequest(BaseModel):
 class RollAttributeCheckRequest(BaseModel):
     user_id: str
     attribute_name: str
-    target_value: Optional[int] = None
 
 class RollSanityCheckRequest(BaseModel):
     user_id: str
@@ -44,8 +43,7 @@ async def roll_attribute_check(request: RollAttributeCheckRequest) -> Dict[str, 
     """对用户的某个属性或技能进行检定"""
     result = dice_service.roll_attribute_check(
         request.user_id,
-        request.attribute_name,
-        request.target_value
+        request.attribute_name
     )
     return result
 

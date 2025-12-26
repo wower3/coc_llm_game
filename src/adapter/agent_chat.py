@@ -123,20 +123,6 @@ def send_message(data: MessageRequest):
         raise HTTPException(status_code=500, detail=f'处理消息失败: {str(e)}')
 
 
-@app.post('/chat/reset')
-def reset_agent():
-    """重置Agent状态"""
-    global agent_ready, messages
-    try:
-        thread_manager.scene_stack.clear()
-        messages = []
-        add_log('info', 'Agent已重置，对话历史已清空')
-        return {'success': True, 'message': 'Agent已重置到初始状态'}
-    except Exception as e:
-        add_log('error', f'重置失败: {str(e)}')
-        raise HTTPException(status_code=500, detail=f'重置失败: {str(e)}')
-
-
 @app.post('/chat/reset-all')
 def reset_all_memory():
     """重置所有线程的记忆（包括checkpointer中的历史）"""

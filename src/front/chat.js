@@ -92,26 +92,6 @@ const ChatModule = {
     },
 
     /**
-     * 重置 Agent
-     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
-     */
-    async resetAgent() {
-        this.chatLoading = true;
-        try {
-            const response = await fetch(`${this.CHAT_API_URL}/reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            return result;
-        } catch (error) {
-            return { success: false, error: '重置失败: ' + error.message };
-        } finally {
-            this.chatLoading = false;
-        }
-    },
-
-    /**
      * 重置所有记忆（包括所有线程的历史）
      * @returns {Promise<{success: boolean, message?: string, error?: string}>}
      */
