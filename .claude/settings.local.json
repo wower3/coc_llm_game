@@ -18,7 +18,8 @@
       "Bash(conda activate:*)",
       "Bash(timeout:*)",
       "Bash(pip show:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(cmd.exe //c \"taskkill /PID 2768 /F\":*)"
     ],
     "deny": [],
     "ask": []

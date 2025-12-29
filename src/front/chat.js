@@ -62,17 +62,22 @@ const ChatModule = {
     },
 
     /**
-     * 发送消息到 Agent
+     * 发送消息到 Agent（流式输出）
      * @param {string} message - 用户消息
-     * @returns {Promise<{success: boolean, response?: string, scene_info?: object, error?: string}>}
+     * @param {function} onToken - 每收到一个token时的回调函数
+     * @param {function} onComplete - 完成时的回调函数
+     * @param {function} onError - 错误时的回调函数
+     * @returns {Promise<void>}
      */
-    async sendMessage(message) {
+    async sendMessage(message, onToken, onComplete, onError) {
         if (!message || !message.trim()) {
-            return { success: false, error: '消息不能为空' };
+            onError && onError('消息不能为空');
+            return;
         }
 
         if (!this.chatOnline) {
-            return { success: false, error: '对话服务未连接' };
+            onError && onError('对话服务未连接');
+            return;
         }
 
         this.isWaitingResponse = true;
@@ -82,10 +87,34 @@ const ChatModule = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: message.trim() })
             });
-            const result = await response.json();
-            return result;
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                // 解析 SSE 格式: "data: xxx\n\n"
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const content = line.slice(6);
+                        if (content === '[DONE]') {
+                            onComplete && onComplete(fullResponse);
+                        } else if (content.startsWith('[ERROR]')) {
+                            onError && onError(content.slice(8));
+                        } else {
+                            fullResponse += content;
+                            onToken && onToken(content);
+                        }
+                    }
+                }
+            }
         } catch (error) {
-            return { success: false, error: '发送消息失败: ' + error.message };
+            onError && onError('发送消息失败: ' + error.message);
         } finally {
             this.isWaitingResponse = false;
         }

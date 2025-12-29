@@ -5,6 +5,7 @@ COC 对话服务 API
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import sys
 import os
@@ -87,7 +88,7 @@ def init_agent():
 
 @app.post('/chat/send')
 def send_message(data: MessageRequest):
-    """发送消息到Agent"""
+    """发送消息到Agent（流式输出）"""
     global agent_ready, messages
 
     if not agent_ready:
@@ -97,30 +98,32 @@ def send_message(data: MessageRequest):
     if not user_message:
         raise HTTPException(status_code=400, detail='消息不能为空')
 
-    try:
-        current_thread_id = thread_manager.current_thread_id
-        config = {"configurable": {"thread_id": current_thread_id}}
-        add_log('info', f'收到用户消息: {user_message[:50]}...')
+    current_thread_id = thread_manager.current_thread_id
+    config = {"configurable": {"thread_id": current_thread_id}}
+    add_log('info', f'收到用户消息: {user_message[:50]}...')
+    messages.append(HumanMessage(content=user_message))
 
-        messages.append(HumanMessage(content=user_message))
-        response = agent.invoke({"messages": messages}, config)
-        result = response["messages"][-1].content
-        add_log('info', f'Agent回复: {result[:50]}...')
+    def generate_stream():
+        """生成流式响应"""
+        try:
+            for token, metadata in agent.stream(
+                {"messages": messages},
+                stream_mode="messages",
+                config=config
+            ):
+                if token.content:
+                    yield f"data: {token.content}\n\n"
+            # 发送结束标记
+            yield "data: [DONE]\n\n"
+            add_log('info', 'Agent流式回复完成')
+        except Exception as e:
+            add_log('error', f'流式处理失败: {str(e)}')
+            yield f"data: [ERROR] {str(e)}\n\n"
 
-        return {
-            'success': True,
-            'response': result,
-            'scene_info': {
-                'scene_name': thread_manager.current_scene,
-                'scene_path': thread_manager.get_scene_path(),
-                'scene_depth': thread_manager.scene_depth,
-                'in_scene': thread_manager.in_scene,
-                'thread_id': current_thread_id[:8]
-            }
-        }
-    except Exception as e:
-        add_log('error', f'处理消息失败: {str(e)}')
-        raise HTTPException(status_code=500, detail=f'处理消息失败: {str(e)}')
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream"
+    )
 
 
 @app.post('/chat/reset-all')

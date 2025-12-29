@@ -28,7 +28,6 @@ def main():
 
         # 显示AI回复
         print("游戏主持人:", end="", flush=True)
-        full_reply = ""
 
         # 使用agent处理用户输入，传入thread_id实现记忆隔离
         for token,metadata in agent.stream(  
@@ -38,7 +37,6 @@ def main():
         ):
             # content = token.content_blocks
             print(token.content, end="", flush=True)
-            full_reply += token.content
         print("\n" + "-" * 40)  # 分隔线
 
         # 显示当前线程信息（调试用）
