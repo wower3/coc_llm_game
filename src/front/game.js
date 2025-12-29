@@ -376,44 +376,46 @@ const App = {
             }
         },
 
-        // 发送消息到AI
+        // 发送消息到AI（流式输出）
         async sendToAI(message) {
             this.isWaitingAI = true;
+
+            // 先添加一个空的 AI 消息占位符
+            const aiMessageIndex = this.messages.length;
+            this.messages.push({
+                type: 'narrator',
+                sender: '【游戏主持人】',
+                content: ''
+            });
+
             this.$nextTick(() => {
                 this.scrollToBottom();
             });
 
-            try {
-                const result = await ChatModule.sendMessage(message);
-                if (result.success) {
-                    this.messages.push({
-                        type: 'narrator',
-                        sender: '【游戏主持人】',
-                        content: result.response
+            const self = this;
+            await ChatModule.sendMessage(
+                message,
+                // onToken: 每收到一个 token 时更新消息
+                (token) => {
+                    self.messages[aiMessageIndex].content += token;
+                    self.$nextTick(() => {
+                        self.scrollToBottom();
                     });
-
-                    // 更新场景信息（从API返回的scene_info）
-                    if (result.scene_info) {
-                        this.currentSceneName = result.scene_info.scene_name || result.scene_info.scene_path || '主线程';
-                        this.sceneDepth = result.scene_info.scene_depth || 0;
-                    }
-                } else {
-                    this.messages.push({
-                        type: 'system',
-                        content: 'AI回复失败: ' + result.error
+                },
+                // onComplete: 完成时的回调
+                (fullResponse) => {
+                    self.isWaitingAI = false;
+                    self.$nextTick(() => {
+                        self.scrollToBottom();
                     });
+                },
+                // onError: 错误时的回调
+                (error) => {
+                    self.messages[aiMessageIndex].content = 'AI回复失败: ' + error;
+                    self.messages[aiMessageIndex].type = 'system';
+                    self.isWaitingAI = false;
                 }
-            } catch (error) {
-                this.messages.push({
-                    type: 'system',
-                    content: '发送消息失败: ' + error.message
-                });
-            }
-
-            this.isWaitingAI = false;
-            this.$nextTick(() => {
-                this.scrollToBottom();
-            });
+            );
         },
 
         // 处理玩家输入

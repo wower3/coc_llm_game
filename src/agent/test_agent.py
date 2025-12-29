@@ -18,7 +18,7 @@ from dice.dice_mcp import DiceService
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # 从 service_mcp 导入场景管理相关类
-from src.agent.agentService.service_mcp import ThreadManager, McpService, MAIN_PROMPT
+from src.agent.agentService.service_mcp import ThreadManager, McpService
 
 # 加载环境变量
 load_dotenv(override=True)
@@ -38,7 +38,6 @@ class RollDiceInput(BaseModel):
 class AttributeCheckInput(BaseModel):
     user_id: str = Field(description="执行检定的用户ID，用于查找角色卡")
     attribute_name: str = Field(description="要检定的属性或技能名称，例如 '力量', '侦查'，'图书馆使用'，'闪避'")
-    target_value: Optional[int] = Field(default=None, description="检定的目标值。如果未提供，将自动从用户的角色卡中查找")
 
 class SanityCheckInput(BaseModel):
     user_id: str = Field(description="执行检定的用户ID")
@@ -62,7 +61,7 @@ def roll_dice_tool(expression: str, is_hidden: bool = False) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 @tool(args_schema=AttributeCheckInput)
-def roll_attribute_check_tool(user_id: str, attribute_name: str, target_value: Optional[int] = None) -> str:
+def roll_attribute_check_tool(user_id: str, attribute_name: str) -> str:
     """
     对用户的某个属性或技能进行检定（1d100）。
 
@@ -73,7 +72,7 @@ def roll_attribute_check_tool(user_id: str, attribute_name: str, target_value: O
     :param target_value: (可选) 检定的目标值。默认不提供，将自动从用户的角色卡中查找。
     :return: 包含检定结果、目标值、成功等级的字典。
     """
-    result = dice_service.roll_attribute_check(user_id, attribute_name, target_value)
+    result = dice_service.roll_attribute_check(user_id, attribute_name)
     return json.dumps(result, ensure_ascii=False)
 
 @tool(args_schema=SanityCheckInput)

@@ -41,7 +41,7 @@ class DiceService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def roll_attribute_check(self, user_id: str, attribute_name: str, target_value: Optional[int] = None) -> Dict[str, Any]:
+    def roll_attribute_check(self, user_id: str, attribute_name: str) -> Dict[str, Any]:
         """
         对用户的某个属性或技能进行检定（1d100）。
 
@@ -52,7 +52,8 @@ class DiceService:
         :param target_value: (可选) 检定的目标值。如果未提供，将自动从用户的角色卡中查找。
         :return: 包含检定结果、目标值、成功等级的字典。
         """
-        if target_value is None:
+        target_value = "0"
+        if target_value == "0":
             # 1. 获取 Pydantic 对象
             player_obj = model.get_user_card(user_id)
             skill_obj = model.get_skill_card(user_id)
