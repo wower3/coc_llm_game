@@ -40,7 +40,7 @@ def main():
         # 显示AI回复
         print("游戏主持人:", end="", flush=True)
 
-        # 使用agent处理用户输入，传入thread_id实现记忆隔离
+        # 使用agent处理用户输入，传入thread_id实现记忆隔离 TODO
         for token, metadata in agent.stream(
             {"messages": thread_messages[current_thread_id]},
             stream_mode="messages",
@@ -49,6 +49,7 @@ def main():
             # content = token.content_blocks
             print(token.content, end="", flush=True)
         print("\n" + "-" * 40)  # 分隔线
+        print(thread_messages[current_thread_id])
 
         # 显示当前线程信息（调试用）
         print(f"线程: {thread_manager.current_thread_id[:8]}... | 场景深度: {thread_manager.scene_depth} | 路径: {thread_manager.get_scene_path()}")

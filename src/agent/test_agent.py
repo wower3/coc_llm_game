@@ -18,7 +18,7 @@ from dice.dice_mcp import DiceService
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # 从 service_mcp 导入场景管理相关类
-from src.agent.agentService.service_mcp import ThreadManager, McpService
+from src.agent.agentService.service_mcp1 import ThreadManager, McpService
 
 # 加载环境变量
 load_dotenv(override=True)
