@@ -19,7 +19,16 @@
       "Bash(timeout:*)",
       "Bash(pip show:*)",
       "Bash(dir:*)",
-      "Bash(cmd.exe //c \"taskkill /PID 2768 /F\":*)"
+      "Bash(cmd.exe //c \"taskkill /PID 2768 /F\":*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cat:*)",
+      "Bash(source:*)",
+      "Bash(cmd.exe //c \"taskkill /PID 43552 /F\":*)",
+      "Bash(cmd.exe //c \"taskkill /PID 6536 /F\":*)",
+      "Bash(cmd.exe //c \"taskkill /PID 30224 /F\":*)",
+      "Bash(cmd.exe //c \"taskkill /PID 45088 /F\":*)",
+      "Bash(cmd.exe //c \"taskkill /PID 18924 /F\":*)"
     ],
     "deny": [],
     "ask": []

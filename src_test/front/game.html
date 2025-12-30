@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>COC 跑团游戏</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #1a1a2e;
+            color: #eee;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 顶部菜单栏 */
+        .menu-bar {
+            background: linear-gradient(to right, #16213e, #0f3460);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 2px solid #e94560;
+            flex-shrink: 0;
+        }
+
+        .menu-bar .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e94560;
+            margin-right: 30px;
+        }
+
+        .menu-bar .menu-items {
+            display: flex;
+            gap: 20px;
+        }
+
+        .menu-bar .menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .menu-bar .menu-item:hover {
+            background: rgba(233, 69, 96, 0.3);
+        }
+
+        .menu-bar .menu-right {
+            margin-left: auto;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左侧人物属性栏 */
+        .character-panel {
+            min-width: 200px;
+            background: linear-gradient(to bottom, #16213e, #1a1a2e);
+            border-right: none;
+            padding: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .character-panel h2 {
+            color: #e94560;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .character-info {
+            margin-bottom: 20px;
+        }
+
+        .character-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .character-occupation {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .attr-section {
+            margin-bottom: 15px;
+        }
+
+        .attr-section h3 {
+            font-size: 14px;
+            color: #e94560;
+            margin-bottom: 10px;
+        }
+
+        .attr-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .attr-item {
+            background: rgba(15, 52, 96, 0.5);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .attr-item .label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .attr-item .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .status-bars {
+            margin-top: 15px;
+        }
+
+        .status-bar {
+            margin-bottom: 10px;
+        }
+
+        .status-bar .bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .status-bar .bar-container {
+            height: 8px;
+            background: #0f3460;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .status-bar .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .bar-fill.hp { background: linear-gradient(to right, #e94560, #ff6b6b); }
+        .bar-fill.san { background: linear-gradient(to right, #4ecdc4, #44a08d); }
+        .bar-fill.mp { background: linear-gradient(to right, #667eea, #764ba2); }
+        .bar-fill.luck { background: linear-gradient(to right, #f093fb, #f5576c); }
+
+        /* 中间对话栏 */
+        .dialogue-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a2e;
+        }
+
+        .dialogue-header {
+            padding: 10px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            font-size: 14px;
+            color: #e94560;
+        }
+
+        .dialogue-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.narrator {
+            background: rgba(15, 52, 96, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #e94560;
+        }
+
+        .message.npc {
+            background: rgba(78, 205, 196, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #4ecdc4;
+        }
+
+        .message.player {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            margin-left: 50px;
+        }
+
+        .message.system {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            padding: 10px;
+        }
+
+        .message.dice-roll {
+            background: rgba(233, 69, 96, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px dashed #e94560;
+            text-align: center;
+        }
+
+        .message .sender {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .message.narrator .sender { color: #e94560; }
+        .message.npc .sender { color: #4ecdc4; }
+        .message.player .sender { color: #667eea; }
+
+        .message .content {
+            line-height: 1.6;
+        }
+
+        .dialogue-input {
+            padding: 15px 20px;
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+            display: flex;
+            gap: 10px;
+        }
+
+        .dialogue-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .dialogue-input input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .dialogue-input button {
+            padding: 12px 25px;
+            background: #e94560;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .dialogue-input button:hover {
+            background: #ff6b6b;
+        }
+
+        /* 右侧面板 */
+        .right-panel {
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            border-left: none;
+            flex-shrink: 0;
+        }
+
+        /* 物品信息栏 */
+        .inventory-panel {
+            flex: 1;
+            background: linear-gradient(to bottom, #16213e, #1a1a2e);
+            padding: 15px;
+            overflow-y: auto;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        .inventory-panel h2 {
+            color: #e94560;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .inventory-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .inventory-tab {
+            padding: 6px 12px;
+            background: rgba(15, 52, 96, 0.5);
+            border: none;
+            border-radius: 4px;
+            color: #888;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .inventory-tab.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .item {
+            background: rgba(15, 52, 96, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .item:hover {
+            background: rgba(15, 52, 96, 0.6);
+            transform: translateX(5px);
+        }
+
+        .item .item-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 3px;
+        }
+
+        .item .item-desc {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .item .item-stats {
+            font-size: 11px;
+            color: #4ecdc4;
+            margin-top: 5px;
+        }
+
+        /* 选项栏 */
+        .options-panel {
+            min-height: 100px;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e);
+            padding: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .options-panel h2 {
+            color: #e94560;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .option-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-btn {
+            padding: 12px 15px;
+            background: rgba(15, 52, 96, 0.5);
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .option-btn:hover {
+            background: rgba(233, 69, 96, 0.3);
+            border-color: #e94560;
+            transform: translateX(5px);
+        }
+
+        .option-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .option-btn .option-key {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #e94560;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .no-options {
+            color: #666;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e94560;
+        }
+
+        /* 技能列表 */
+        .skills-section {
+            margin-top: 15px;
+        }
+
+        .skill-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 8px;
+            background: rgba(15, 52, 96, 0.3);
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .skill-item .skill-name {
+            color: #ccc;
+        }
+
+        .skill-item .skill-value {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+
+        /* 折叠面板样式 */
+        .collapsible-section {
+            margin-bottom: 10px;
+        }
+
+        .collapse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .collapse-header:hover {
+            background: rgba(233, 69, 96, 0.3);
+        }
+
+        .collapse-header h3 {
+            color: #e94560;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .collapse-icon {
+            color: #e94560;
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .collapse-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .collapse-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapse-content.expanded {
+            max-height: 2000px;
+        }
+
+        .collapse-content-inner {
+            padding-top: 10px;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0f3460;
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 性别图标 */
+        .sex-icon {
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        .sex-icon.male { color: #667eea; }
+        .sex-icon.female { color: #f093fb; }
+
+        /* 调查员ID输入区域 */
+        .player-id-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .player-id-input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .player-id-input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .player-id-input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .btn-small {
+            padding: 8px 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+        }
+
+        .btn-search {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-search:hover {
+            background: #ff6b6b;
+        }
+
+        .btn-refresh {
+            background: #4ecdc4;
+            color: #fff;
+        }
+
+        .btn-refresh:hover {
+            background: #44a08d;
+        }
+
+        .btn-login {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-login:hover {
+            background: #764ba2;
+        }
+
+        .btn-logout {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-logout:hover {
+            background: #ff6b6b;
+        }
+
+        .player-logged-in {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .logged-user {
+            color: #4ecdc4;
+            font-size: 13px;
+            flex: 1;
+        }
+
+        .btn-small:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            color: #e94560;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        /* 服务控制区域 */
+        .service-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .service-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #4ecdc4;
+            box-shadow: 0 0 5px #4ecdc4;
+        }
+
+        .status-dot.offline {
+            background: #e94560;
+            box-shadow: 0 0 5px #e94560;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn-service {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: #4ecdc4;
+            color: #fff;
+        }
+
+        .btn-start:hover {
+            background: #44a08d;
+        }
+
+        .btn-stop {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-stop:hover {
+            background: #ff6b6b;
+        }
+
+        .btn-service:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 可拖动分隔条 */
+        .resizer {
+            background: #0f3460;
+            transition: background 0.3s;
+        }
+
+        .resizer:hover {
+            background: #e94560;
+        }
+
+        .resizer-h {
+            width: 6px;
+            cursor: col-resize;
+        }
+
+        .resizer-v {
+            height: 6px;
+            cursor: row-resize;
+        }
+
+        .resizer:active {
+            background: #e94560;
+        }
+
+        /* 对话服务控制样式 */
+        .chat-service-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid #0f3460;
+        }
+
+        .chat-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .chat-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .chat-status-dot.online {
+            background: #667eea;
+            box-shadow: 0 0 5px #667eea;
+        }
+
+        .chat-status-dot.offline {
+            background: #888;
+            box-shadow: 0 0 5px #888;
+        }
+
+        .btn-chat {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-chat-start {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-chat-start:hover {
+            background: #764ba2;
+        }
+
+        .btn-chat-stop {
+            background: #888;
+            color: #fff;
+        }
+
+        .btn-chat-stop:hover {
+            background: #666;
+        }
+
+        .btn-chat-reset {
+            background: #e67e22;
+            color: #fff;
+        }
+
+        .btn-chat-reset:hover {
+            background: #d35400;
+        }
+
+        .btn-chat:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* AI回复等待动画 */
+        .ai-thinking {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            margin-bottom: 15px;
+        }
+
+        .ai-thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .ai-thinking-dots span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: thinking 1.4s infinite ease-in-out both;
+        }
+
+        .ai-thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .ai-thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .ai-thinking-dots span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* 日志弹窗样式 */
+        .logs-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .logs-container {
+            width: 700px;
+            max-height: 80vh;
+            background: #16213e;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-header h3 {
+            color: #e94560;
+            margin: 0;
+        }
+
+        .logs-header-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .log-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .log-item.user {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 3px solid #667eea;
+        }
+
+        .log-item.agent {
+            background: rgba(78, 205, 196, 0.2);
+            border-left: 3px solid #4ecdc4;
+        }
+
+        .log-item.system {
+            background: rgba(233, 69, 96, 0.2);
+            border-left: 3px solid #e94560;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+
+        .log-type {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .log-type.user { color: #667eea; }
+        .log-type.agent { color: #4ecdc4; }
+        .log-type.system { color: #e94560; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部菜单栏 -->
+        <div class="menu-bar">
+            <div class="logo">COC 跑团</div>
+            <div class="menu-items">
+                <div class="menu-item" @click="showCharacterSheet">角色卡</div>
+                <div class="menu-item" @click="rollDice">掷骰</div>
+                <div class="menu-item" @click="showRules">规则</div>
+                <div class="menu-item" @click="saveGame">存档</div>
+                <div class="menu-item" @click="loadGame">读档</div>
+                <div class="menu-item" @click="showLogs">系统日志</div>
+            </div>
+            <div class="menu-right">
+                <!-- 对话服务控制 -->
+                <div class="chat-service-control">
+                    <div class="chat-status">
+                        <span :class="['chat-status-dot', chatOnline ? 'online' : 'offline']"></span>
+                        <span>{{ chatOnline ? 'AI在线' : 'AI离线' }}</span>
+                    </div>
+                    <button
+                        v-if="chatOnline"
+                        class="btn-chat btn-chat-reset"
+                        @click="resetAllMemory"
+                        :disabled="chatLoading"
+                    >重置记忆</button>
+                </div>
+                <span>|</span>
+                <span>章节: {{ currentChapter }}</span>
+                <span>|</span>
+                <span>场景: {{ currentScene }}</span>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 左侧人物属性栏 -->
+            <div class="character-panel" :style="{ width: leftPanelWidth + 'px' }">
+                <h2>调查员信息 <span v-if="isLoading" class="loading-spinner"></span></h2>
+
+                <!-- 调查员ID输入区域 -->
+                <div class="player-id-section">
+                    <!-- 未登录状态 -->
+                    <div v-if="!isLoggedIn" class="player-id-input-group">
+                        <input
+                            type="text"
+                            class="player-id-input"
+                            v-model="playerIdInput"
+                            placeholder="输入调查员ID"
+                            @keyup.enter="searchPlayer"
+                        />
+                        <button class="btn-small btn-search" @click="searchPlayer" :disabled="isLoading">
+                            查询
+                        </button>
+                        <button
+                            v-if="playerFound"
+                            class="btn-small btn-login"
+                            @click="loginPlayer"
+                            :disabled="isLoading"
+                        >
+                            登录
+                        </button>
+                    </div>
+                    <!-- 已登录状态 -->
+                    <div v-else class="player-logged-in">
+                        <span class="logged-user">已登录: {{ playerId }}</span>
+                        <button class="btn-small btn-logout" @click="logoutPlayer">
+                            退出
+                        </button>
+                        <button class="btn-small btn-refresh" @click="refreshPlayer" :disabled="isLoading">
+                            刷新
+                        </button>
+                    </div>
+                    <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+                </div>
+
+                <div class="character-info">
+                    <div class="character-name">
+                        {{ character.name }}
+                        <span :class="['sex-icon', character.sex === 'Male' ? 'male' : 'female']">
+                            {{ character.sex === 'Male' ? '♂' : '♀' }}
+                        </span>
+                    </div>
+                    <div class="character-occupation">{{ character.age }}岁</div>
+                </div>
+
+                <div class="status-bars">
+                    <div class="status-bar">
+                        <div class="bar-label">
+                            <span>生命值 (HP)</span>
+                            <span>{{ character.hp }} / {{ character.maxHp }}</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill hp" :style="{ width: (character.hp / character.maxHp * 100) + '%' }"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <div class="bar-label">
+                            <span>理智值 (SAN)</span>
+                            <span>{{ character.san }} / {{ character.maxSan }}</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill san" :style="{ width: (character.san / character.maxSan * 100) + '%' }"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <div class="bar-label">
+                            <span>魔法值 (MP)</span>
+                            <span>{{ character.mp }} / {{ character.maxMp }}</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill mp" :style="{ width: (character.mp / character.maxMp * 100) + '%' }"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 基础属性 - 可折叠 -->
+                <div class="collapsible-section">
+                    <div class="collapse-header" @click="toggleSection('attrs')">
+                        <h3>基础属性</h3>
+                        <span :class="['collapse-icon', { expanded: sections.attrs }]">▼</span>
+                    </div>
+                    <div :class="['collapse-content', { expanded: sections.attrs }]">
+                        <div class="collapse-content-inner">
+                            <div class="attr-grid">
+                                <div class="attr-item">
+                                    <div class="label">力量 STR</div>
+                                    <div class="value">{{ character.str }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">体质 CON</div>
+                                    <div class="value">{{ character.con }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">体型 SIZ</div>
+                                    <div class="value">{{ character.siz }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">敏捷 DEX</div>
+                                    <div class="value">{{ character.dex }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">外貌 APP</div>
+                                    <div class="value">{{ character.app }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">智力 INT</div>
+                                    <div class="value">{{ character.int }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">意志 POW</div>
+                                    <div class="value">{{ character.pow }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">教育 EDU</div>
+                                    <div class="value">{{ character.edu }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="label">幸运 LUK</div>
+                                    <div class="value">{{ character.luck }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技能列表 - 可折叠 -->
+                <div class="collapsible-section">
+                    <div class="collapse-header" @click="toggleSection('skills')">
+                        <h3>技能列表 ({{ mainSkills.length }})</h3>
+                        <span :class="['collapse-icon', { expanded: sections.skills }]">▼</span>
+                    </div>
+                    <div :class="['collapse-content', { expanded: sections.skills }]">
+                        <div class="collapse-content-inner">
+                            <div v-if="mainSkills.length === 0" class="loading">
+                                暂无技能数据
+                            </div>
+                            <div class="skill-item" v-for="skill in mainSkills" :key="skill.id">
+                                <span class="skill-name">{{ skill.name }}</span>
+                                <span class="skill-value">{{ skill.value }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 左侧分隔条 -->
+            <div class="resizer resizer-h" @mousedown="startResize('left', $event)"></div>
+
+            <!-- 中间对话栏 -->
+            <div class="dialogue-panel">
+                <div class="dialogue-header">
+                    <span>{{ currentSceneName || '主线程' }}</span>
+                    <span v-if="sceneDepth > 0" style="margin-left: 10px; font-size: 12px; color: #888;">（深度: {{ sceneDepth }}）</span>
+                </div>
+                <div class="dialogue-content" ref="dialogueContent">
+                    <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.type]">
+                        <div v-if="msg.sender" class="sender">{{ msg.sender }}</div>
+                        <div class="content">{{ msg.content }}</div>
+                    </div>
+                    <!-- AI思考中动画 -->
+                    <div v-if="isWaitingAI" class="ai-thinking">
+                        <div class="ai-thinking-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span style="color: #667eea; font-size: 13px;">AI正在思考...</span>
+                    </div>
+                </div>
+                <div class="dialogue-input">
+                    <input
+                        v-model="playerInput"
+                        @keyup.enter="sendMessage"
+                        placeholder="输入你的行动或对话..."
+                    />
+                    <button @click="sendMessage">发送</button>
+                </div>
+            </div>
+
+            <!-- 右侧分隔条 -->
+            <div class="resizer resizer-h" @mousedown="startResize('right', $event)"></div>
+
+            <!-- 右侧面板 -->
+            <div class="right-panel" :style="{ width: rightPanelWidth + 'px' }">
+                <!-- 物品信息栏 -->
+                <div class="inventory-panel">
+                    <h2>物品栏</h2>
+                    <div class="inventory-tabs">
+                        <button
+                            :class="['inventory-tab', { active: inventoryTab === 'weapons' }]"
+                            @click="inventoryTab = 'weapons'"
+                        >武器</button>
+                        <button
+                            :class="['inventory-tab', { active: inventoryTab === 'items' }]"
+                            @click="inventoryTab = 'items'"
+                        >道具</button>
+                        <button
+                            :class="['inventory-tab', { active: inventoryTab === 'clues' }]"
+                            @click="inventoryTab = 'clues'"
+                        >线索</button>
+                    </div>
+                    <div class="item-list">
+                        <div v-if="inventoryTab === 'weapons'" v-for="weapon in weapons" :key="weapon.name" class="item">
+                            <div class="item-name">{{ weapon.name }}</div>
+                            <div class="item-desc">{{ weapon.type }}</div>
+                            <div class="item-stats">伤害: {{ weapon.damage }} | 射程: {{ weapon.range }}</div>
+                        </div>
+                        <div v-if="inventoryTab === 'items'" v-for="item in items" :key="item.name" class="item">
+                            <div class="item-name">{{ item.name }}</div>
+                            <div class="item-desc">{{ item.desc }}</div>
+                        </div>
+                        <div v-if="inventoryTab === 'clues'" v-for="clue in clues" :key="clue.name" class="item">
+                            <div class="item-name">{{ clue.name }}</div>
+                            <div class="item-desc">{{ clue.desc }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 上下分隔条 -->
+                <div class="resizer resizer-v" @mousedown="startResize('vertical', $event)"></div>
+
+                <!-- 选项栏 -->
+                <div class="options-panel" :style="{ height: optionsPanelHeight + 'px' }">
+                    <h2>可选行动</h2>
+                    <div v-if="options.length > 0" class="option-list">
+                        <button
+                            v-for="(option, index) in options"
+                            :key="index"
+                            class="option-btn"
+                            @click="selectOption(option)"
+                        >
+                            <span class="option-key">{{ index + 1 }}</span>
+                            {{ option.text }}
+                        </button>
+                    </div>
+                    <div v-else class="no-options">
+                        当前没有特殊选项，请自由行动
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志弹窗 -->
+        <div v-if="logsVisible" class="logs-modal" @click.self="logsVisible = false">
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h3>系统日志</h3>
+                    <div class="logs-header-btns">
+                        <button class="btn-chat btn-chat-start" @click="refreshLogs">刷新</button>
+                        <button class="btn-chat btn-chat-stop" @click="clearLogs">清空</button>
+                        <button class="btn-chat" style="background:#888" @click="logsVisible = false">关闭</button>
+                    </div>
+                </div>
+                <div class="logs-content">
+                    <div v-if="logs.length === 0" style="color:#888;text-align:center;padding:20px;">
+                        暂无日志
+                    </div>
+                    <div v-for="(log, index) in logs" :key="index" :class="['log-item', log.type]">
+                        <span class="log-time">[{{ log.time }}]</span>
+                        <span :class="['log-type', log.type]">{{ log.type.toUpperCase() }}</span>
+                        <span>{{ log.content }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./chat.js?v=2"></script>
+    <script src="./game.js?v=2"></script>
+</body>
+</html>
