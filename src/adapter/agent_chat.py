@@ -38,8 +38,8 @@ system_logs = []
 # Agent状态
 agent_ready = False
 
-# 对话历史
-messages = []
+# 使用字典为每个线程维护独立的消息列表
+thread_messages = {thread_manager.main_thread_id: []}
 
 
 # 请求模型
@@ -89,7 +89,7 @@ def init_agent():
 @app.post('/chat/send')
 def send_message(data: MessageRequest):
     """发送消息到Agent（流式输出）"""
-    global agent_ready, messages
+    global agent_ready, thread_messages
 
     if not agent_ready:
         raise HTTPException(status_code=400, detail='Agent未初始化，请先初始化')
@@ -98,16 +98,25 @@ def send_message(data: MessageRequest):
     if not user_message:
         raise HTTPException(status_code=400, detail='消息不能为空')
 
+    # 获取当前线程ID用于记忆隔离
     current_thread_id = thread_manager.current_thread_id
+
+    # 确保当前线程有消息列表
+    if current_thread_id not in thread_messages:
+        thread_messages[current_thread_id] = []
+
+    # 只向当前线程的消息列表添加消息
+    thread_messages[current_thread_id].append(HumanMessage(content=user_message))
+
     config = {"configurable": {"thread_id": current_thread_id}}
     add_log('info', f'收到用户消息: {user_message[:50]}...')
-    messages.append(HumanMessage(content=user_message))
 
     def generate_stream():
         """生成流式响应"""
         try:
+            # 只传入当前线程的消息
             for token, metadata in agent.stream(
-                {"messages": messages},
+                {"messages": thread_messages[current_thread_id]},
                 stream_mode="messages",
                 config=config
             ):
@@ -129,19 +138,19 @@ def send_message(data: MessageRequest):
 @app.post('/chat/reset-all')
 def reset_all_memory():
     """重置所有线程的记忆（包括checkpointer中的历史）"""
-    global agent_ready, messages
+    global agent_ready, thread_messages
     try:
         # 清空场景栈
         thread_manager.scene_stack.clear()
-        # 清空当前对话历史
-        messages = []
-        # 清空checkpointer中的所有存储
-        if hasattr(checkpointer, 'storage'):
-            checkpointer.storage.clear()
         # 重新生成主线程ID
         import uuid
         thread_manager.main_thread_id = str(uuid.uuid4())
         thread_manager.current_thread_id = thread_manager.main_thread_id
+        # 重新初始化线程消息字典
+        thread_messages = {thread_manager.main_thread_id: []}
+        # 清空checkpointer中的所有存储
+        if hasattr(checkpointer, 'storage'):
+            checkpointer.storage.clear()
 
         add_log('info', '所有记忆已重置')
         return {
