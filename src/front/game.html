@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>COC 跑团游戏</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -945,22 +948,10 @@
                 <div class="chat-service-control">
                     <div class="chat-status">
                         <span :class="['chat-status-dot', chatOnline ? 'online' : 'offline']"></span>
-                        <span>{{ chatOnline ? 'AI对话' : 'AI离线' }}</span>
+                        <span>{{ chatOnline ? 'AI在线' : 'AI离线' }}</span>
                     </div>
                     <button
-                        v-if="!chatEnabled"
-                        class="btn-chat btn-chat-start"
-                        @click="startChat"
-                        :disabled="chatLoading"
-                    >开启对话</button>
-                    <button
-                        v-else
-                        class="btn-chat btn-chat-stop"
-                        @click="stopChat"
-                        :disabled="chatLoading"
-                    >关闭对话</button>
-                    <button
-                        v-if="chatEnabled"
+                        v-if="chatOnline"
                         class="btn-chat btn-chat-reset"
                         @click="resetAllMemory"
                         :disabled="chatLoading"

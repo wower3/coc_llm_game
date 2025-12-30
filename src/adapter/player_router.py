@@ -1,10 +1,9 @@
 """
-COC 跑团游戏后端 API 服务
+COC 玩家数据路由
 提供角色信息、技能数据的查询接口
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 import sys
 import os
 
@@ -13,22 +12,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.dice.model import DataContainer
 
-app = FastAPI(title="COC API", description="COC 跑团游戏后端 API 服务")
-
-# 允许跨域请求
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter(prefix="/api", tags=["玩家数据"])
 
 # 数据库连接实例
 db = DataContainer()
 
 
-@app.get('/api/player/{player_id}')
+def get_all_chinese_names():
+    """获取所有技能的中文名映射"""
+    sql = "SELECT id, name FROM chinese_name"
+    results = db._execute_query(sql)
+    return {row['id']: row['name'] for row in results}
+
+
+@router.get('/player/{player_id}')
 def get_player(player_id: str):
     """获取玩家基本信息"""
     try:
@@ -77,7 +74,7 @@ def get_player(player_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get('/api/skills/{player_id}')
+@router.get('/skills/{player_id}')
 def get_skills(player_id: str):
     """获取玩家技能信息（数值大于10的技能）"""
     try:
@@ -102,14 +99,7 @@ def get_skills(player_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_all_chinese_names():
-    """获取所有技能的中文名映射"""
-    sql = "SELECT id, name FROM chinese_name"
-    results = db._execute_query(sql)
-    return {row['id']: row['name'] for row in results}
-
-
-@app.get('/api/chinese_name/{skill_id}')
+@router.get('/chinese_name/{skill_id}')
 def get_chinese_name(skill_id: str):
     """获取单个技能的中文名"""
     try:
@@ -119,14 +109,7 @@ def get_chinese_name(skill_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get('/api/health')
+@router.get('/health')
 def health_check():
     """健康检查接口"""
-    return {'status': 'ok', 'message': 'COC API 服务运行中'}
-
-
-if __name__ == '__main__':
-    import uvicorn
-    print("启动 COC 跑团游戏 API 服务...")
-    print("访问 http://localhost:5780/api/health 检查服务状态")
-    uvicorn.run(app, host='0.0.0.0', port=5780)
+    return {'status': 'ok', 'message': 'Player API 服务运行中'}
