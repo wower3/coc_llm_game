@@ -46,10 +46,10 @@ def main():
             stream_mode="messages",
             config=config
         ):
-            # content = token.content_blocks
             print(token.content, end="", flush=True)
         print("\n" + "-" * 40)  # 分隔线
-        print(thread_messages[current_thread_id])
+        # 测试记忆内容
+        # print(thread_messages[current_thread_id])
 
         # 显示当前线程信息（调试用）
         print(f"线程: {thread_manager.current_thread_id[:8]}... | 场景深度: {thread_manager.scene_depth} | 路径: {thread_manager.get_scene_path()}")
