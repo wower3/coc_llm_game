@@ -15,6 +15,7 @@ sys.path.insert(0, src_dir)
 # 导入子路由
 from adapter.player_router import router as player_router
 from adapter.chat_router import router as chat_router
+from adapter.auth_router import router as auth_router
 
 app = FastAPI(
     title="COC Backend API",
@@ -33,6 +34,7 @@ app.add_middleware(
 # 注册子路由
 app.include_router(player_router)
 app.include_router(chat_router)
+app.include_router(auth_router)
 
 
 @app.get('/health')

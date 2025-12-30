@@ -2,17 +2,22 @@ const { createApp } = Vue;
 
 // API 配置
 const API_BASE_URL = 'http://localhost:5780/api';
-const PLAYER_ID = '00000001';  // 默认玩家ID，可根据需要修改
+const AUTH_BASE_URL = 'http://localhost:5780/auth';
 
 const App = {
     data() {
         return {
             // API 配置
             apiBaseUrl: API_BASE_URL,
-            playerId: PLAYER_ID,
-            playerIdInput: PLAYER_ID,  // 输入框中的ID
+            playerId: '',
+            playerIdInput: '',
             isLoading: false,
-            errorMsg: '',  // 错误信息
+            errorMsg: '',
+
+            // 登录状态
+            isLoggedIn: false,
+            playerFound: false,
+            authToken: null,
 
             // 对话服务状态
             chatOnline: false,
@@ -177,9 +182,13 @@ const App = {
                 return;
             }
             this.errorMsg = '';
+            this.playerFound = false;
             this.playerId = this.playerIdInput.trim();
-            await this.loadPlayerData();
-            await this.loadSkillsData();
+            const success = await this.loadPlayerData();
+            if (success) {
+                await this.loadSkillsData();
+                this.playerFound = true;
+            }
         },
 
         // 刷新当前调查员信息
@@ -191,6 +200,52 @@ const App = {
             this.errorMsg = '';
             await this.loadPlayerData();
             await this.loadSkillsData();
+        },
+
+        // 登录
+        async loginPlayer() {
+            if (!this.playerId) {
+                this.errorMsg = '请先查询调查员';
+                return;
+            }
+            this.isLoading = true;
+            try {
+                const response = await fetch(`${AUTH_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_id: this.playerId })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    this.authToken = result.token;
+                    this.isLoggedIn = true;
+                    this.playerFound = false;
+                    localStorage.setItem('authToken', result.token);
+                    localStorage.setItem('playerId', this.playerId);
+                }
+            } catch (error) {
+                this.errorMsg = '登录失败: ' + error.message;
+            }
+            this.isLoading = false;
+        },
+
+        // 退出登录
+        logoutPlayer() {
+            this.isLoggedIn = false;
+            this.authToken = null;
+            this.playerFound = false;
+            this.playerId = '';
+            this.playerIdInput = '';
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('playerId');
+            // 重置角色数据
+            this.character = {
+                name: '未登录', sex: 'Male', age: 0,
+                str: 0, con: 0, siz: 0, dex: 0, app: 0,
+                int: 0, pow: 0, edu: 0, hp: 0, maxHp: 0,
+                san: 0, maxSan: 99, mp: 0, maxMp: 0, luck: 0
+            };
+            this.mainSkills = [];
         },
 
         // 检查对话服务状态
@@ -261,6 +316,7 @@ const App = {
         async loadPlayerData() {
             this.isLoading = true;
             this.errorMsg = '';
+            let success = false;
             try {
                 const response = await fetch(`${this.apiBaseUrl}/player/${this.playerId}`);
                 const result = await response.json();
@@ -287,6 +343,7 @@ const App = {
                         maxMp: data.max_mp,
                         luck: data.luck
                     };
+                    success = true;
                 } else {
                     this.errorMsg = result.error || '未找到该调查员';
                 }
@@ -295,6 +352,7 @@ const App = {
                 this.errorMsg = '网络错误，请检查API服务是否启动';
             }
             this.isLoading = false;
+            return success;
         },
 
         // 从API加载技能数据
@@ -368,6 +426,11 @@ const App = {
                 // onComplete: 完成时的回调
                 (fullResponse) => {
                     self.isWaitingAI = false;
+                    // 对话完成后刷新用户状态
+                    if (self.isLoggedIn) {
+                        self.loadPlayerData();
+                        self.loadSkillsData();
+                    }
                     self.$nextTick(() => {
                         self.scrollToBottom();
                     });
@@ -648,9 +711,16 @@ const App = {
             this.checkChatStatus();
         }, 10000);
 
-        // 加载玩家数据
-        this.loadPlayerData();
-        this.loadSkillsData();
+        // 恢复登录状态
+        const savedToken = localStorage.getItem('authToken');
+        const savedPlayerId = localStorage.getItem('playerId');
+        if (savedToken && savedPlayerId) {
+            this.authToken = savedToken;
+            this.playerId = savedPlayerId;
+            this.isLoggedIn = true;
+            this.loadPlayerData();
+            this.loadSkillsData();
+        }
 
         // 滚动到底部
         this.$nextTick(() => {

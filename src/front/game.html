@@ -629,6 +629,37 @@
             background: #44a08d;
         }
 
+        .btn-login {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-login:hover {
+            background: #764ba2;
+        }
+
+        .btn-logout {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-logout:hover {
+            background: #ff6b6b;
+        }
+
+        .player-logged-in {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .logged-user {
+            color: #4ecdc4;
+            font-size: 13px;
+            flex: 1;
+        }
+
         .btn-small:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -972,7 +1003,8 @@
 
                 <!-- 调查员ID输入区域 -->
                 <div class="player-id-section">
-                    <div class="player-id-input-group">
+                    <!-- 未登录状态 -->
+                    <div v-if="!isLoggedIn" class="player-id-input-group">
                         <input
                             type="text"
                             class="player-id-input"
@@ -982,6 +1014,21 @@
                         />
                         <button class="btn-small btn-search" @click="searchPlayer" :disabled="isLoading">
                             查询
+                        </button>
+                        <button
+                            v-if="playerFound"
+                            class="btn-small btn-login"
+                            @click="loginPlayer"
+                            :disabled="isLoading"
+                        >
+                            登录
+                        </button>
+                    </div>
+                    <!-- 已登录状态 -->
+                    <div v-else class="player-logged-in">
+                        <span class="logged-user">已登录: {{ playerId }}</span>
+                        <button class="btn-small btn-logout" @click="logoutPlayer">
+                            退出
                         </button>
                         <button class="btn-small btn-refresh" @click="refreshPlayer" :disabled="isLoading">
                             刷新
