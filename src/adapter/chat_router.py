@@ -1,10 +1,9 @@
 """
-COC 对话服务 API
-仅提供对话功能，所有agent逻辑都在test_agent.py中
+COC 对话服务路由
+提供对话功能，所有agent逻辑都在test_agent.py中
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import sys
@@ -21,22 +20,10 @@ sys.path.insert(0, agent_dir)
 # 从test_agent导入agent和thread_manager
 from agent.test_agent import agent, thread_manager, checkpointer
 
-app = FastAPI(title="COC Chat API", description="COC 对话服务 API")
-
-# 允许跨域请求
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter(prefix="/chat", tags=["对话服务"])
 
 # 系统日志存储
 system_logs = []
-
-# Agent状态
-agent_ready = False
 
 # 使用字典为每个线程维护独立的消息列表
 thread_messages = {thread_manager.main_thread_id: []}
@@ -59,22 +46,20 @@ def add_log(level: str, message: str):
         system_logs.pop(0)
 
 
-@app.get('/chat/health')
+@router.get('/health')
 def health_check():
     """健康检查接口"""
     return {
         'success': True,
-        'agent_ready': agent_ready,
+        'agent_ready': True,
         'message': 'COC 对话服务运行中'
     }
 
 
-@app.post('/chat/init')
+@router.post('/init')
 def init_agent():
-    """初始化Agent"""
-    global agent_ready
+    """初始化Agent（保留接口兼容性）"""
     try:
-        agent_ready = True
         add_log('info', 'Agent初始化成功')
         return {
             'success': True,
@@ -86,13 +71,10 @@ def init_agent():
         raise HTTPException(status_code=500, detail=f'初始化失败: {str(e)}')
 
 
-@app.post('/chat/send')
+@router.post('/send')
 def send_message(data: MessageRequest):
     """发送消息到Agent（流式输出）"""
-    global agent_ready, thread_messages
-
-    if not agent_ready:
-        raise HTTPException(status_code=400, detail='Agent未初始化，请先初始化')
+    global thread_messages
 
     user_message = data.message.strip()
     if not user_message:
@@ -114,7 +96,6 @@ def send_message(data: MessageRequest):
     def generate_stream():
         """生成流式响应"""
         try:
-            # 只传入当前线程的消息
             for token, metadata in agent.stream(
                 {"messages": thread_messages[current_thread_id]},
                 stream_mode="messages",
@@ -122,33 +103,25 @@ def send_message(data: MessageRequest):
             ):
                 if token.content:
                     yield f"data: {token.content}\n\n"
-            # 发送结束标记
             yield "data: [DONE]\n\n"
             add_log('info', 'Agent流式回复完成')
         except Exception as e:
             add_log('error', f'流式处理失败: {str(e)}')
             yield f"data: [ERROR] {str(e)}\n\n"
 
-    return StreamingResponse(
-        generate_stream(),
-        media_type="text/event-stream"
-    )
+    return StreamingResponse(generate_stream(), media_type="text/event-stream")
 
 
-@app.post('/chat/reset-all')
+@router.post('/reset-all')
 def reset_all_memory():
-    """重置所有线程的记忆（包括checkpointer中的历史）"""
-    global agent_ready, thread_messages
+    """重置所有线程的记忆"""
+    global thread_messages
     try:
-        # 清空场景栈
         thread_manager.scene_stack.clear()
-        # 重新生成主线程ID
         import uuid
         thread_manager.main_thread_id = str(uuid.uuid4())
         thread_manager.current_thread_id = thread_manager.main_thread_id
-        # 重新初始化线程消息字典
         thread_messages = {thread_manager.main_thread_id: []}
-        # 清空checkpointer中的所有存储
         if hasattr(checkpointer, 'storage'):
             checkpointer.storage.clear()
 
@@ -163,7 +136,7 @@ def reset_all_memory():
         raise HTTPException(status_code=500, detail=f'重置记忆失败: {str(e)}')
 
 
-@app.get('/chat/scene')
+@router.get('/scene')
 def get_scene_info():
     """获取当前场景信息"""
     try:
@@ -178,23 +151,15 @@ def get_scene_info():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get('/chat/logs')
+@router.get('/logs')
 def get_logs():
     """获取系统日志"""
     return {'success': True, 'logs': system_logs}
 
 
-@app.post('/chat/logs/clear')
+@router.post('/logs/clear')
 def clear_logs():
     """清空系统日志"""
     global system_logs
     system_logs = []
     return {'success': True, 'message': '日志已清空'}
-
-
-if __name__ == '__main__':
-    import uvicorn
-    print("启动 COC 对话服务...")
-    print("访问 http://localhost:5782/chat/health 检查服务状态")
-    add_log('info', '对话服务启动')
-    uvicorn.run(app, host='0.0.0.0', port=5782)

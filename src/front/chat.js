@@ -1,19 +1,17 @@
 /**
  * COC 对话模块
- * 独立的前端模块，用于与 chat_api.py (端口5002) 通信
- * 与已有功能完全隔离
+ * 独立的前端模块，用于与后端统一API通信
  */
 
 const ChatModule = {
-    // 配置
-    CHAT_API_URL: 'http://localhost:5782/chat',
-    LAUNCHER_URL: 'http://localhost:5781/launcher',
+    // 配置 - 统一使用5780端口
+    CHAT_API_URL: 'http://localhost:5780/chat',
 
     // 状态
     chatOnline: false,
     chatLoading: false,
-    chatEnabled: false,  // 对话功能是否启用
-    isWaitingResponse: false,  // 是否正在等待AI回复
+    chatEnabled: false,
+    isWaitingResponse: false,
 
     /**
      * 检查对话服务状态
@@ -41,20 +39,16 @@ const ChatModule = {
     async initAgent() {
         this.chatLoading = true;
         try {
-            console.log('[ChatModule] 正在初始化Agent, URL:', `${this.CHAT_API_URL}/init`);
             const response = await fetch(`${this.CHAT_API_URL}/init`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
-            console.log('[ChatModule] 响应状态:', response.status);
             const result = await response.json();
-            console.log('[ChatModule] 响应内容:', result);
             if (result.success) {
                 this.chatOnline = true;
             }
             return result;
         } catch (error) {
-            console.error('[ChatModule] initAgent错误:', error);
             return { success: false, error: '无法连接到对话服务: ' + error.message };
         } finally {
             this.chatLoading = false;
@@ -203,41 +197,6 @@ const ChatModule = {
             return await response.json();
         } catch (error) {
             return { success: false, error: '清空日志失败' };
-        }
-    },
-
-    /**
-     * 启动对话服务
-     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
-     */
-    async startService() {
-        try {
-            console.log('[ChatModule] 正在启动服务, URL:', `${this.LAUNCHER_URL}/start`);
-            const response = await fetch(`${this.LAUNCHER_URL}/start`, {
-                method: 'POST'
-            });
-            console.log('[ChatModule] startService响应状态:', response.status);
-            const result = await response.json();
-            console.log('[ChatModule] startService响应内容:', result);
-            return result;
-        } catch (error) {
-            console.error('[ChatModule] startService错误:', error);
-            return { success: false, error: '无法连接管理服务: ' + error.message };
-        }
-    },
-
-    /**
-     * 停止对话服务
-     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
-     */
-    async stopService() {
-        try {
-            const response = await fetch(`${this.LAUNCHER_URL}/stop`, {
-                method: 'POST'
-            });
-            return await response.json();
-        } catch (error) {
-            return { success: false, error: '无法连接管理服务' };
         }
     }
 };

@@ -198,58 +198,21 @@ const App = {
             try {
                 const online = await ChatModule.checkStatus();
                 this.chatOnline = online;
-                // 如果服务在线且agent已就绪，同步启用对话功能
-                if (online) {
-                    this.chatEnabled = true;
-                    ChatModule.enable();
+                // 服务在线则自动启用对话功能并初始化Agent
+                if (online && !this.chatEnabled) {
+                    const initResult = await ChatModule.initAgent();
+                    if (initResult.success) {
+                        this.chatEnabled = true;
+                        ChatModule.enable();
+                    }
+                } else if (!online) {
+                    this.chatEnabled = false;
+                    ChatModule.disable();
                 }
             } catch (error) {
                 this.chatOnline = false;
-            }
-        },
-
-        // 开启对话功能
-        async startChat() {
-            this.chatLoading = true;
-            try {
-                // 先启动服务
-                const startResult = await ChatModule.startService();
-                if (!startResult.success) {
-                    alert('启动服务失败: ' + (startResult.error || '未知错误'));
-                    this.chatLoading = false;
-                    return;
-                }
-
-                // 等待服务就绪（增加等待时间）
-                await new Promise(resolve => setTimeout(resolve, 8000));
-
-                // 初始化 Agent
-                const initResult = await ChatModule.initAgent();
-                if (initResult.success) {
-                    this.chatOnline = true;
-                    this.chatEnabled = true;
-                    ChatModule.enable();
-                } else {
-                    alert('初始化Agent失败: ' + (initResult.error || initResult.detail || '未知错误'));
-                }
-            } catch (error) {
-                alert('无法连接管理服务');
-            }
-            this.chatLoading = false;
-        },
-
-        // 关闭对话功能
-        async stopChat() {
-            this.chatLoading = true;
-            try {
-                await ChatModule.stopService();
                 this.chatEnabled = false;
-                this.chatOnline = false;
-                ChatModule.disable();
-            } catch (error) {
-                console.error('停止服务失败:', error);
             }
-            this.chatLoading = false;
         },
 
         // 重置所有记忆
