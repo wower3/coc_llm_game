@@ -40,7 +40,6 @@ coverage.xml
 
 # === 本地配置与日志 ===
 # 忽略本地环境变量文件
-.env
 .venv
 pip-log.txt
 pip-delete-this-directory.txt

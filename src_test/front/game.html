@@ -299,6 +299,18 @@
             background: #ff6b6b;
         }
 
+        .dialogue-input button:disabled,
+        .dialogue-input button.btn-disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .dialogue-input input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* 右侧面板 */
         .right-panel {
             min-width: 200px;
@@ -1175,9 +1187,14 @@
                     <input
                         v-model="playerInput"
                         @keyup.enter="sendMessage"
+                        :disabled="isWaitingAI"
                         placeholder="输入你的行动或对话..."
                     />
-                    <button @click="sendMessage">发送</button>
+                    <button
+                        @click="sendMessage"
+                        :disabled="isWaitingAI"
+                        :class="{ 'btn-disabled': isWaitingAI }"
+                    >发送</button>
                 </div>
             </div>
 
@@ -1225,20 +1242,32 @@
 
                 <!-- 选项栏 -->
                 <div class="options-panel" :style="{ height: optionsPanelHeight + 'px' }">
-                    <h2>可选行动</h2>
-                    <div v-if="options.length > 0" class="option-list">
+                    <h2>场景选择</h2>
+                    <div v-if="availableScenes.length > 0" class="option-list">
                         <button
-                            v-for="(option, index) in options"
+                            v-for="(scene, index) in availableScenes"
                             :key="index"
                             class="option-btn"
-                            @click="selectOption(option)"
+                            :disabled="isWaitingAI"
+                            @click="enterScene(scene)"
                         >
                             <span class="option-key">{{ index + 1 }}</span>
-                            {{ option.text }}
+                            {{ scene }}
                         </button>
                     </div>
-                    <div v-else class="no-options">
-                        当前没有特殊选项，请自由行动
+                    <!-- 退出场景按钮 -->
+                    <div v-if="sceneDepth > 0" style="margin-top: 10px;">
+                        <button
+                            class="option-btn"
+                            :disabled="isWaitingAI"
+                            @click="exitScene"
+                            style="background: rgba(233, 69, 96, 0.3); border-color: #e94560;"
+                        >
+                            退出当前场景
+                        </button>
+                    </div>
+                    <div v-if="availableScenes.length === 0" class="no-options">
+                        当前没有可选场景
                     </div>
                 </div>
             </div>
