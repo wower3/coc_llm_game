@@ -64,6 +64,10 @@ def send_message(data: MessageRequest):
     if not user_message:
         raise HTTPException(status_code=400, detail='消息不能为空')
 
+    # 每次发送新消息时，清空AI返回的场景列表
+    from src_test.service.agent_service import available_scenes
+    available_scenes.clear()
+
     agent, tm, _ = get_agent()
     current_thread_id = tm.current_thread_id
     if current_thread_id not in thread_messages:
@@ -104,14 +108,14 @@ def get_scene_info():
 
 @router.post('/reset-all')
 def reset_all_memory():
-    """重置所有线程的记忆"""
+    """重置所有线程的记忆和场景进度"""
     global thread_messages
     try:
         import uuid
         _, tm, cp = get_agent()
 
-        # 清除场景栈
-        tm.scene_stack.clear()
+        # 调用 reset_progress 重置场景进度
+        tm.reset_progress()
 
         # 重新生成主线程ID
         tm.main_thread_id = str(uuid.uuid4())
@@ -145,3 +149,74 @@ def clear_logs():
     global system_logs
     system_logs = []
     return {'success': True}
+
+
+@router.get('/scenes/available')
+def get_available_scenes():
+    """获取当前可用的场景选择列表（AI返回的列表经过次数限制过滤）"""
+    try:
+        from src_test.service.agent_service import available_scenes
+        _, tm, _ = get_agent()
+        available = tm.get_available_scenes(available_scenes)
+        return {
+            'success': True,
+            'available_scenes': available,
+            'scene_limits': tm.scene_limits,
+            'entered_count': tm.entered_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class NewSceneRequest(BaseModel):
+    scene: str
+
+
+@router.post('/scene/new')
+def enter_new_scene(data: NewSceneRequest):
+    """进入新场景（只切换场景，不获取AI描述，让前端通过/send继续对话）"""
+    try:
+        from src_test.service.agent_service import mcp_service, available_scenes
+        _, tm, _ = get_agent()
+
+        result = mcp_service.new_scene(data.scene)
+        add_log('info', f'进入新场景: {data.scene}')
+
+        return {
+            'success': True,
+            'message': result,
+            'scene': data.scene,
+            'scene_depth': tm.scene_depth,
+            'current_scene': tm.current_scene,
+            'in_scene': tm.in_scene,
+            'available_scenes': tm.get_available_scenes(available_scenes)
+        }
+    except ValueError as e:
+        add_log('error', f'进入场景失败: {str(e)}')
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        add_log('error', f'进入场景失败: {str(e)}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/scene/exit')
+def exit_current_scene():
+    """退出当前场景（只切换场景，不获取AI描述，让前端通过/send继续对话）"""
+    try:
+        from src_test.service.agent_service import mcp_service, available_scenes
+        _, tm, _ = get_agent()
+
+        result = mcp_service.exit_scene()
+        add_log('info', f'退出场景，当前深度: {tm.scene_depth}')
+
+        return {
+            'success': True,
+            'message': result,
+            'scene_depth': tm.scene_depth,
+            'current_scene': tm.current_scene,
+            'in_scene': tm.in_scene,
+            'available_scenes': tm.get_available_scenes(available_scenes)
+        }
+    except Exception as e:
+        add_log('error', f'退出场景失败: {str(e)}')
+        raise HTTPException(status_code=500, detail=str(e))

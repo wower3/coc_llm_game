@@ -28,7 +28,9 @@
       "Bash(cmd.exe //c \"taskkill /PID 6536 /F\":*)",
       "Bash(cmd.exe //c \"taskkill /PID 30224 /F\":*)",
       "Bash(cmd.exe //c \"taskkill /PID 45088 /F\":*)",
-      "Bash(cmd.exe //c \"taskkill /PID 18924 /F\":*)"
+      "Bash(cmd.exe //c \"taskkill /PID 18924 /F\":*)",
+      "Bash(tasklist:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

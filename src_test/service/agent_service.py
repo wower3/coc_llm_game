@@ -25,6 +25,9 @@ mcp_service = McpService(thread_manager)
 dice_service = DiceService()
 checkpointer = InMemorySaver()
 
+# AI返回的场景选择列表（用于存储AI通过select_scene工具返回的场景）
+available_scenes: list[str] = []
+
 
 # 定义工具参数模型
 class RollDiceInput(BaseModel):
@@ -90,7 +93,23 @@ def roll_sanity_check_tool(user_id: str, success_penalty: str, failure_penalty: 
     return json.dumps(result, ensure_ascii=False)
 
 
-@tool()
+@tool
+def select_scene(scenes: str) -> str:
+    """
+    提供可以进入的场景按钮。
+
+    当明确提到调用"select_scene"时调用此函数，否则不要调用这个工具。
+    将场景名称以空格分隔传入，前端会显示为可点击的按钮。
+    场景会在后端进行验证：必须在 scenes.txt 中配置且进入次数未达上限。
+
+    :param scenes: 场景名称/关键词，用空格分隔，例如 "场景A 场景B 场景C"
+    :return: 场景列表已更新的确认信息
+    """
+    global available_scenes
+    # 解析场景列表
+    available_scenes = mcp_service.select_scene(scenes)
+    return "可选场景已更新"
+
 def new_scene(scene: str) -> str:
     """
     进入新的场景。
@@ -120,7 +139,7 @@ def exit_scene() -> str:
 
 
 # 工具列表
-tools = [roll_dice_tool, roll_attribute_check_tool, roll_sanity_check_tool, new_scene, exit_scene]
+tools = [roll_dice_tool, roll_attribute_check_tool, roll_sanity_check_tool, select_scene]
 
 
 # 动态提示词中间件

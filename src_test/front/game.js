@@ -47,6 +47,7 @@ const App = {
             currentScene: '场景1',
             currentSceneName: '主线程',
             sceneDepth: 0,  // 场景深度
+            availableScenes: [],  // 可用的场景选择列表
 
             // 玩家输入
             playerInput: '',
@@ -282,6 +283,8 @@ const App = {
                     this.messages = [{ type: 'system', content: '—— 记忆已重置 ——' }];
                     this.currentSceneName = '主线程';
                     this.sceneDepth = 0;
+                    // 刷新场景列表（重置后所有场景恢复可进入）
+                    await this.refreshAvailableScenes();
                     alert('所有记忆已重置');
                 } else {
                     alert('重置失败: ' + (result.error || result.detail || '未知错误'));
@@ -310,6 +313,92 @@ const App = {
         async clearLogs() {
             await ChatModule.clearLogs();
             await this.refreshLogs();
+        },
+
+        // 刷新可用场景列表
+        async refreshAvailableScenes() {
+            const result = await ChatModule.getAvailableScenes();
+            if (result.success) {
+                this.availableScenes = result.available_scenes || [];
+            } else {
+                this.availableScenes = [];
+            }
+        },
+
+        // 进入新场景
+        async enterScene(scene) {
+            // 添加玩家选择的消息
+            this.messages.push({
+                type: 'player',
+                sender: '【' + this.character.name + '】',
+                content: '（进入场景：' + scene + '）'
+            });
+
+            const result = await ChatModule.enterNewScene(scene);
+            if (result.success) {
+                // 刷新场景信息
+                await this.refreshSceneInfo();
+                // 使用后端返回的最新场景列表
+                this.availableScenes = result.available_scenes || [];
+                // 添加系统消息
+                this.messages.push({
+                    type: 'system',
+                    content: '—— ' + result.message + ' ——'
+                });
+
+                // 自动发送"继续"消息获取场景描述（流式传输）
+                await this.sendToAI('我已进入当前场景');
+            } else {
+                this.messages.push({
+                    type: 'system',
+                    content: '进入场景失败: ' + (result.error || '未知错误')
+                });
+            }
+        },
+
+        // 退出当前场景
+        async exitScene() {
+            if (this.sceneDepth === 0) {
+                alert('当前不在任何场景中');
+                return;
+            }
+
+            // 添加玩家选择的消息
+            this.messages.push({
+                type: 'player',
+                sender: '【' + this.character.name + '】',
+                content: '（退出当前场景）'
+            });
+
+            const result = await ChatModule.exitCurrentScene();
+            if (result.success) {
+                // 刷新场景信息
+                await this.refreshSceneInfo();
+                // 使用后端返回的最新场景列表（退出场景不影响次数统计）
+                this.availableScenes = result.available_scenes || [];
+                // 添加系统消息
+                this.messages.push({
+                    type: 'system',
+                    content: '—— ' + result.message + ' ——'
+                });
+
+                // 自动发送"继续"消息获取场景描述（流式传输）
+                await this.sendToAI('我已从其他场景退回当前场景');
+            } else {
+                this.messages.push({
+                    type: 'system',
+                    content: '退出场景失败: ' + (result.error || '未知错误')
+                });
+            }
+        },
+
+        // 刷新场景信息
+        async refreshSceneInfo() {
+            const result = await ChatModule.getSceneInfo();
+            if (result.success) {
+                this.currentSceneName = result.scene_name || '主线程';
+                this.sceneDepth = result.scene_depth || 0;
+            }
         },
 
         // 从API加载玩家数据
@@ -371,6 +460,8 @@ const App = {
 
         // 发送消息
         async sendMessage() {
+            // 对话进行中时禁止发送新消息
+            if (this.isWaitingAI) return;
             if (!this.playerInput.trim()) return;
 
             // 添加玩家消息
@@ -424,13 +515,17 @@ const App = {
                     });
                 },
                 // onComplete: 完成时的回调
-                (fullResponse) => {
+                async (fullResponse) => {
                     self.isWaitingAI = false;
                     // 对话完成后刷新用户状态
                     if (self.isLoggedIn) {
                         self.loadPlayerData();
                         self.loadSkillsData();
                     }
+                    // 刷新场景信息
+                    await self.refreshSceneInfo();
+                    // 刷新可用场景列表
+                    await self.refreshAvailableScenes();
                     self.$nextTick(() => {
                         self.scrollToBottom();
                     });

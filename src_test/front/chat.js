@@ -198,6 +198,52 @@ const ChatModule = {
         } catch (error) {
             return { success: false, error: '清空日志失败' };
         }
+    },
+
+    /**
+     * 获取当前可用的场景选择列表
+     * @returns {Promise<{success: boolean, scenes?: array, error?: string}>}
+     */
+    async getAvailableScenes() {
+        try {
+            const response = await fetch(`${this.CHAT_API_URL}/scenes/available`);
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: '获取场景列表失败' };
+        }
+    },
+
+    /**
+     * 进入新场景
+     * @param {string} scene - 场景名称
+     * @returns {Promise<{success: boolean, message?: string, scene?: string, error?: string}>}
+     */
+    async enterNewScene(scene) {
+        try {
+            const response = await fetch(`${this.CHAT_API_URL}/scene/new`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scene })
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: '进入场景失败' };
+        }
+    },
+
+    /**
+     * 退出当前场景
+     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+     */
+    async exitCurrentScene() {
+        try {
+            const response = await fetch(`${this.CHAT_API_URL}/scene/exit`, {
+                method: 'POST'
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: '退出场景失败' };
+        }
     }
 };
 

@@ -41,7 +41,7 @@ start "Backend-5780" cmd /k "cd /d %PROJECT_ROOT% && call conda activate %CONDA_
 timeout /t 3 /nobreak >nul
 
 echo [2/3] Starting frontend service (HTTP - port 5770)...
-start "Frontend-5770" cmd /c "cd /d %SCRIPT_DIR% && python -m http.server 5770"
+start "Frontend-5770" cmd /c "cd /d %SCRIPT_DIR%/front && python -m http.server 5770"
 timeout /t 2 /nobreak >nul
 
 echo [3/3] Opening game page...
