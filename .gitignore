@@ -49,6 +49,10 @@ pip-delete-this-directory.txt
 logs/
 *.log
 
+# 但保留logs目录下的脚本文件
+!logs/*.bat
+!logs/*.sh
+
 # === IDE 与系统文件 ===
 # PyCharm
 .idea/
