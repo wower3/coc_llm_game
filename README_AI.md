@@ -12,8 +12,47 @@ coc_structure/
 │   ├── domain/            # 领域层 - 核心模型
 │   └── infrastructure/    # 基础设施层 - DB/文件/日志
 ├── scenes/                # 剧本文件
-└── logs/                  # 日志目录(自动生成)
+├── logs/                  # 日志目录(自动生成)
+├── venv/                  # 虚拟环境(运行setup_venv后生成)
+├── setup_venv.bat         # Windows环境安装脚本
+├── setup_venv.sh          # Linux/Mac环境安装脚本
+├── start.bat              # Windows一键启动脚本
+├── start.sh               # Linux/Mac一键启动脚本
+└── requirements.txt       # Python依赖列表
 ```
+
+---
+
+## 快速启动
+
+项目已配置为独立的虚拟环境，**一键启动**：
+
+### Windows
+
+```batch
+REM 首次运行：安装虚拟环境
+setup_venv.bat
+
+REM 启动游戏
+start.bat
+```
+
+### Linux/Mac
+
+```bash
+# 首次运行：安装虚拟环境
+chmod +x setup_venv.sh start.sh
+./setup_venv.sh
+
+# 启动游戏
+./start.sh
+```
+
+### 访问地址
+
+- 前端: http://localhost:5770/game.html
+- 后端: http://localhost:5780
+- API文档: http://localhost:5780/docs
 
 ---
 
