@@ -8,11 +8,16 @@ sys.path.insert(0, str(project_root))
 
 from src_test.service.agent_service import agent
 from src_test.service.scene_service import ThreadManager
+from src_test.infrastructure.log import get_logger
 from langchain.messages import HumanMessage, AIMessage, SystemMessage
 
+logger = get_logger("CLI")
 thread_manager = ThreadManager()
 
 def main():
+    logger.info("=" * 60)
+    logger.info("CLI启动: 克苏鲁神话角色扮演游戏")
+    logger.info("=" * 60)
     print("欢迎来到克苏鲁神话角色扮演游戏!")
     print("输入 'exit' 或 'quit' 退出游戏")
     print(f"主线程ID: {thread_manager.main_thread_id[:8]}...\n")
@@ -30,8 +35,11 @@ def main():
         user_input = input("玩家: ")
         extra_text = "（当前用户id为：00000002）"
         if user_input.lower() in {"exit", "quit"}:
+            logger.info("CLI退出: 用户主动退出")
             print("游戏副本结束，期待下次冒险再见！")
             break
+
+        logger.info(f"[CLI] 用户输入: {user_input}")
 
         # 获取当前线程ID用于记忆隔离
         current_thread_id = thread_manager.current_thread_id
@@ -51,13 +59,16 @@ def main():
         print("游戏主持人:", end="", flush=True)
 
         # 使用agent处理用户输入，传入thread_id实现记忆隔离 TODO
+        full_response = ""
         for token, metadata in agent.stream(
             {"messages": thread_messages[current_thread_id]},
             stream_mode="messages",
             config=config
         ):
             print(token.content, end="", flush=True)
+            full_response += token.content
         print("\n" + "-" * 40)  # 分隔线
+        logger.info(f"[CLI] AI回复: {full_response[:50]}...")
         # 测试记忆内容
         # print(thread_messages[current_thread_id])
 

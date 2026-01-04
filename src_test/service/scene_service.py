@@ -9,6 +9,9 @@ from typing import Optional
 
 from src_test.domain.models import SceneInfo
 from src_test.infrastructure.file import TxtKeywordSearch
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("SCENE")
 
 
 # 获取项目根目录下的scenes文件夹
@@ -146,13 +149,17 @@ class ThreadManager:
 
     def enter_scene(self, scene: str) -> tuple[str, str]:
         """进入新场景，增加进入次数"""
+        logger.info(f"[场景] 尝试进入场景: {scene}")
+
         # 验证场景是否存在
         if scene not in self.scene_limits:
+            logger.error(f"[场景] 无效的场景: {scene}")
             raise ValueError(f"无效的场景：{scene}")
 
         # 检查进入次数限制
         entered = self.entered_count.get(scene, 0)
         if entered >= self.scene_limits[scene]:
+            logger.warning(f"[场景] 场景进入次数已达上限: {scene}")
             raise ValueError(f"场景进入次数已达上限：{scene}")
 
         # 增加进入次数
@@ -165,18 +172,23 @@ class ThreadManager:
         scene_info = SceneInfo(scene, new_thread_id, new_prompt)
         self.scene_stack.append(scene_info)
         self.current_thread_id = new_thread_id
+        logger.info(f"[场景] 成功进入场景: {scene}, 新线程ID: {new_thread_id[:8]}, 当前深度: {self.scene_depth}")
         return new_thread_id, scene_content
 
     def exit_scene(self) -> tuple[str, str, str]:
         """退出当前场景"""
+        logger.info(f"[场景] 尝试退出场景，当前深度: {self.scene_depth}")
         if not self.scene_stack:
+            logger.warning("[场景] 当前不在任何场景中")
             return ("", "主线程", self.main_thread_id)
         exited_scene = self.scene_stack.pop()
         if self.scene_stack:
             parent = self.scene_stack[-1]
             self.current_thread_id = parent.thread_id
+            logger.info(f"[场景] 退出场景: {exited_scene.scene_name}, 返回: {parent.scene_name}, 新深度: {self.scene_depth}")
             return (exited_scene.scene_name, parent.scene_name, parent.thread_id)
         self.current_thread_id = self.main_thread_id
+        logger.info(f"[场景] 退出场景: {exited_scene.scene_name}, 返回主线程")
         return (exited_scene.scene_name, "主线程", self.main_thread_id)
 
     def get_current_prompt(self) -> str:
