@@ -32,14 +32,12 @@ BASE_PROMPT = """
 2. **属性或技能检定 请调用"roll_attribute_check_tool"工具:
 - 当玩家需要进行属性或技能检定时（例如"进行力量检定","进行说服检定"，".ra 侦查"等表述）使用，使用"roll_attribute_check_tool"工具
 - 需要提供玩家ID和属性或技能名称
-- 目标值target_value未提供时不需要该传参。
+- 调用该工具前需要向玩家进行确认
 
 3. **理智检定 请调用"roll_sanity_check_tool"工具**:
 - 当玩家角色需要进行理智检定时使用，例如"sc 1/1d6"（表示检定成功时理智惩罚的骰子表达式为"1",失败时理智惩罚的骰子表达式为"1d6"）
 - 需要提供玩家ID以及成功和失败时的理智损失表达式
-"""
-
-EXIT_SCENE_TOOL = """
+- 调用该工具前需要向玩家进行确认
 """
 
 SCENE_GUIDANCE = """
@@ -52,7 +50,7 @@ SCENE_GUIDANCE = """
 - 拒绝玩家进行上帝视角的操作（拒绝玩家直接询问还没进行到的剧情，玩家的技能，属性检定必须调用工具，不能跳过检定工具直接要求检定成功）
 """
 
-SCENE_PROMPT = BASE_PROMPT + EXIT_SCENE_TOOL + SCENE_GUIDANCE
+SCENE_PROMPT = BASE_PROMPT + SCENE_GUIDANCE
 
 
 class ThreadManager:

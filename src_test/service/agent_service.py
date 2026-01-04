@@ -132,8 +132,6 @@ def new_scene(scene: str) -> str:
     """
     return mcp_service.new_scene(scene)
 
-
-@tool()
 def exit_scene() -> str:
     """
     退出当前场景，返回上一个场景或主线程。
