@@ -706,10 +706,10 @@ const App = {
         // 检查对话服务状态
         this.checkChatStatus();
 
-        // 定时检查对话服务状态（每10秒）
+        // 定时检查对话服务状态（每30秒）
         setInterval(() => {
             this.checkChatStatus();
-        }, 10000);
+        }, 30000);
 
         // 恢复登录状态
         const savedToken = localStorage.getItem('authToken');

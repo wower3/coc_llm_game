@@ -6,6 +6,9 @@ Agent 服务
 import os
 import json
 from dotenv import load_dotenv
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("AGENT")
 from langchain_deepseek import ChatDeepSeek
 from langchain.agents import create_agent
 from langchain.tools import tool
@@ -58,7 +61,9 @@ def roll_dice_tool(expression: str, is_hidden: bool = False) -> str:
     :param is_hidden: 是否为暗骰。如果是，结果应只对调用者可见，默认不需要传该参数。
     :return: 一个包含投掷结果和计算过程的字典。
     """
+    logger.info(f"[骰子投掷] 表达式: {expression}, 暗骰: {is_hidden}")
     result = dice_service.roll_dice(expression, is_hidden)
+    logger.info(f"[骰子投掷] 结果: {result}")
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -73,7 +78,9 @@ def roll_attribute_check_tool(user_id: str, attribute_name: str) -> str:
     :param attribute_name: 要检定的属性或技能名称，例如 "力量", "侦查"，"图书馆使用"，"闪避"。
     :return: 包含检定结果、目标值、成功等级的字典。
     """
+    logger.info(f"[属性检定] 用户ID: {user_id}, 属性: {attribute_name}")
     result = dice_service.roll_attribute_check(user_id, attribute_name)
+    logger.info(f"[属性检定] 结果: {result}")
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -89,7 +96,9 @@ def roll_sanity_check_tool(user_id: str, success_penalty: str, failure_penalty: 
     :param failure_penalty: 检定失败时理智惩罚的骰子表达式, 例如 "1d6"。
     :return: 包含检定结果、SAN值变化的详细字典。
     """
+    logger.info(f"[理智检定] 用户ID: {user_id}, 成功惩罚: {success_penalty}, 失败惩罚: {failure_penalty}")
     result = dice_service.roll_sanity_check(user_id, success_penalty, failure_penalty)
+    logger.info(f"[理智检定] 结果: {result}")
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -153,6 +162,7 @@ def dynamic_system_prompt(request: ModelRequest) -> str:
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_URL")
 
+logger.info("初始化DeepSeek模型...")
 model = ChatDeepSeek(
     model="deepseek-chat",
     api_key=DEEPSEEK_API_KEY,
@@ -161,9 +171,11 @@ model = ChatDeepSeek(
 )
 
 # 创建Agent，使用动态提示词中间件和checkpointer
+logger.info("创建Agent，配置工具和中间件...")
 agent = create_agent(
     model=model,
     tools=tools,
     middleware=[dynamic_system_prompt],
     checkpointer=checkpointer
 )
+logger.info("Agent初始化完成")

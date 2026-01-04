@@ -7,6 +7,9 @@ from typing import Dict, Any
 
 from src_test.domain.dice import roll
 from src_test.infrastructure.database import get_repository
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("DICE")
 
 
 class DiceService:
@@ -17,19 +20,24 @@ class DiceService:
 
     def roll_dice(self, expression: str, is_hidden: bool = False) -> Dict[str, Any]:
         """执行骰子投掷"""
+        logger.debug(f"[骰子] 开始投掷: {expression}, 暗骰: {is_hidden}")
         try:
             messages, roll_result = roll(expression)
-            return {
+            result = {
                 "success": True,
                 "result": roll_result,
                 "process": messages,
                 "is_hidden": is_hidden,
             }
+            logger.info(f"[骰子] 投掷成功: {expression} = {roll_result}, 过程: {messages}")
+            return result
         except Exception as e:
+            logger.error(f"[骰子] 投掷失败: {expression}, 错误: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def roll_attribute_check(self, user_id: str, attribute_name: str) -> Dict[str, Any]:
         """属性或技能检定"""
+        logger.info(f"[骰子] 属性检定: 用户={user_id}, 属性={attribute_name}")
         player_obj = self.repository.get_user_card(user_id)
         skill_obj = self.repository.get_skill_card(user_id)
         card_data = player_obj.model_dump()
@@ -56,19 +64,23 @@ class DiceService:
         if roll_result == 99:
             success_level = "大失败"
 
-        return {
+        result = {
             "属性名": attribute_name,
             "属性值": target_value,
             "骰子值": roll_result,
             "结果": success_level,
         }
+        logger.info(f"[骰子] 属性检定结果: {attribute_name}({target_value}) = {roll_result} ({success_level})")
+        return result
 
     def roll_sanity_check(self, user_id: str, success_penalty: str, failure_penalty: str) -> Dict[str, Any]:
         """理智检定"""
+        logger.info(f"[骰子] 理智检定: 用户={user_id}, 成功惩罚={success_penalty}, 失败惩罚={failure_penalty}")
         player_obj = self.repository.get_user_card(user_id)
         card_data = player_obj.model_dump()
         san_id = self.repository.get_id("理智")
         if san_id is None:
+            logger.error(f"[骰子] 角色卡中未找到理智属性")
             return {"success": False, "error": "角色卡中未找到理智属性"}
         current_san = card_data[san_id]
 
@@ -82,7 +94,7 @@ class DiceService:
         new_san = current_san - san_loss
         flag = self.repository.set_user_card(user_id, {san_id: new_san})
 
-        return {
+        result = {
             "success": flag,
             "check_result": "成功" if is_success else "失败",
             "current_san": current_san,
@@ -90,6 +102,8 @@ class DiceService:
             "penalty_process": messages_penalty,
             "new_san": new_san
         }
+        logger.info(f"[骰子] 理智检定结果: {current_san} -> {roll_result} ({'成功' if is_success else '失败'}), 损失: {san_loss}, 新SAN: {new_san}")
+        return result
 
     def set_character_attributes(self, user_id: str, attributes: Dict[str, int]) -> Dict[str, Any]:
         """

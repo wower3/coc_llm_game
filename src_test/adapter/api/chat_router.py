@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from datetime import datetime
+from src_test.infrastructure.log import get_logger
 
+logger = get_logger("API")
 router = APIRouter(prefix="/chat", tags=["对话服务"])
 
 # 延迟导入，避免循环依赖
@@ -49,9 +51,11 @@ def health_check():
 def init_agent():
     try:
         _, tm, _ = get_agent()
+        logger.info(f"[API] Agent初始化成功, 主线程ID: {tm.main_thread_id[:8]}")
         add_log('info', 'Agent初始化成功')
         return {'success': True, 'message': 'Agent初始化成功', 'thread_id': tm.main_thread_id[:8]}
     except Exception as e:
+        logger.error(f"[API] Agent初始化失败: {str(e)}")
         add_log('error', f'Agent初始化失败: {str(e)}')
         raise HTTPException(status_code=500, detail=f'初始化失败: {str(e)}')
 
@@ -62,7 +66,10 @@ def send_message(data: MessageRequest):
     global thread_messages
     user_message = data.message.strip()
     if not user_message:
+        logger.warning("[API] 收到空消息")
         raise HTTPException(status_code=400, detail='消息不能为空')
+
+    logger.info(f"[API] 收到消息: {user_message[:50]}...")
 
     # 每次发送新消息时，清空AI返回的场景列表
     from src_test.service.agent_service import available_scenes
@@ -70,6 +77,8 @@ def send_message(data: MessageRequest):
 
     agent, tm, _ = get_agent()
     current_thread_id = tm.current_thread_id
+    logger.debug(f"[API] 当前线程ID: {current_thread_id[:8]}, 场景: {tm.current_scene}, 深度: {tm.scene_depth}")
+
     if current_thread_id not in thread_messages:
         thread_messages[current_thread_id] = []
     thread_messages[current_thread_id].append(HumanMessage(content=user_message))
@@ -77,14 +86,18 @@ def send_message(data: MessageRequest):
 
     def generate_stream():
         try:
+            full_response = ""
             for token, _ in agent.stream(
                 {"messages": thread_messages[current_thread_id]},
                 stream_mode="messages", config=config
             ):
                 if token.content:
+                    full_response += token.content
                     yield f"data: {token.content}\n\n"
+            logger.info(f"[API] AI响应完成: {full_response[:50]}...")
             yield "data: [DONE]\n\n"
         except Exception as e:
+            logger.error(f"[API] 消息处理失败: {str(e)}", exc_info=True)
             yield f"data: [ERROR] {str(e)}\n\n"
 
     return StreamingResponse(generate_stream(), media_type="text/event-stream")

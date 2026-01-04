@@ -40,9 +40,14 @@ coverage.xml
 
 # === 本地配置与日志 ===
 # 忽略本地环境变量文件
+.env
 .venv
 pip-log.txt
 pip-delete-this-directory.txt
+
+# 忽略所有日志文件和日志目录
+logs/
+*.log
 
 # === IDE 与系统文件 ===
 # PyCharm
