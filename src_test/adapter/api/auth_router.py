@@ -84,3 +84,25 @@ def verify(authorization: Optional[str] = Header(None)):
     except Exception as e:
         logger.error(f"[API] Token验证异常: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail='验证失败')
+
+
+@router.get('/me')
+def get_current_user(authorization: Optional[str] = Header(None)):
+    """获取当前登录用户信息"""
+    logger.debug("[API] 获取当前用户信息请求")
+    try:
+        if not authorization:
+            logger.warning("[API] 获取用户信息失败: 未提供Token")
+            raise HTTPException(status_code=401, detail='未提供Token')
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        player_id = verify_token(token)
+        if not player_id:
+            logger.warning("[API] 获取用户信息失败: Token无效或已过期")
+            raise HTTPException(status_code=401, detail='Token无效或已过期')
+        logger.info(f"[API] 获取用户信息成功: player_id={player_id}")
+        return {'success': True, 'player_id': player_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[API] 获取用户信息异常: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail='获取用户信息失败')

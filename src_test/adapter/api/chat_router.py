@@ -2,9 +2,10 @@
 COC 对话服务路由
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
 from src_test.infrastructure.log import get_logger
 
@@ -61,9 +62,32 @@ def init_agent():
 
 
 @router.post('/send')
-def send_message(data: MessageRequest):
+def send_message(
+    data: MessageRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    发送消息给Agent
+
+    authorization: Bearer token格式的认证头，用于提取当前用户ID
+    """
     from langchain.messages import HumanMessage
     global thread_messages
+
+    # 解析token获取user_id
+    user_id = None
+    if authorization:
+        try:
+            from src_test.adapter.api.auth_router import verify_token
+            token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+            user_id = verify_token(token)
+            if user_id:
+                logger.info(f"[API] 已识别用户: {user_id}")
+        except Exception as e:
+            logger.warning(f"[API] Token解析失败: {str(e)}")
+    else:
+        logger.warning("[API] 未提供Authorization头")
+
     user_message = data.message.strip()
     if not user_message:
         logger.warning("[API] 收到空消息")
@@ -78,6 +102,11 @@ def send_message(data: MessageRequest):
     agent, tm, _ = get_agent()
     current_thread_id = tm.current_thread_id
     logger.debug(f"[API] 当前线程ID: {current_thread_id[:8]}, 场景: {tm.current_scene}, 深度: {tm.scene_depth}")
+
+    # 将 user_id 存储到 thread_user_map 中
+    from src_test.service.agent_service import set_user_id_for_thread
+    set_user_id_for_thread(current_thread_id, user_id)
+    logger.debug(f"[API] 设置线程用户映射: {current_thread_id[:8]} -> {user_id}")
 
     if current_thread_id not in thread_messages:
         thread_messages[current_thread_id] = []
