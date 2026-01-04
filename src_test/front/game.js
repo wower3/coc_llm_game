@@ -28,6 +28,11 @@ const App = {
             // 日志相关
             logsVisible: false,
             logs: [],
+            logFileContent: '',
+            logFileInfo: null,
+            loadingLogFile: false,
+            logAutoRefresh: false,
+            logRefreshTimer: null,
 
             // 面板宽度
             leftPanelWidth: 290,
@@ -298,21 +303,73 @@ const App = {
         // 显示日志弹窗
         async showLogs() {
             this.logsVisible = true;
-            await this.refreshLogs();
+            await this.refreshLogFile();
         },
 
-        // 刷新日志
-        async refreshLogs() {
-            const result = await ChatModule.getLogs();
-            if (result.success) {
-                this.logs = result.logs || [];
+        // 关闭日志弹窗
+        closeLogs() {
+            this.logsVisible = false;
+            if (this.logRefreshTimer) {
+                clearInterval(this.logRefreshTimer);
+                this.logRefreshTimer = null;
+            }
+            this.logAutoRefresh = false;
+        },
+
+        // 刷新日志文件
+        async refreshLogFile() {
+            this.loadingLogFile = true;
+            try {
+                const response = await fetch('http://localhost:5780/chat/log-file');
+                const result = await response.json();
+
+                if (result.success) {
+                    this.logFileContent = result.content;
+                    this.logFileInfo = {
+                        folder: result.log_folder || 'N/A',
+                        lines: result.line_count || 0
+                    };
+                    // 滚动到底部
+                    this.$nextTick(() => {
+                        if (this.$refs.logFileContentRef) {
+                            this.$refs.logFileContentRef.scrollTop = this.$refs.logFileContentRef.scrollHeight;
+                        }
+                    });
+                } else {
+                    this.logFileContent = '加载日志失败';
+                }
+            } catch (error) {
+                this.logFileContent = '加载日志失败: ' + error.message;
+            }
+            this.loadingLogFile = false;
+        },
+
+        // 切换自动刷新
+        toggleAutoRefresh() {
+            this.logAutoRefresh = !this.logAutoRefresh;
+
+            if (this.logAutoRefresh) {
+                // 每3秒刷新一次
+                this.logRefreshTimer = setInterval(() => {
+                    this.refreshLogFile();
+                }, 3000);
+            } else {
+                if (this.logRefreshTimer) {
+                    clearInterval(this.logRefreshTimer);
+                    this.logRefreshTimer = null;
+                }
             }
         },
 
-        // 清空日志
+        // 刷新日志（旧方法，保留兼容性）
+        async refreshLogs() {
+            await this.refreshLogFile();
+        },
+
+        // 清空日志（移除功能）
         async clearLogs() {
-            await ChatModule.clearLogs();
-            await this.refreshLogs();
+            this.logFileContent = '';
+            this.logFileInfo = null;
         },
 
         // 刷新可用场景列表
@@ -821,6 +878,14 @@ const App = {
         this.$nextTick(() => {
             this.scrollToBottom();
         });
+    },
+
+    beforeUnmount() {
+        // 清理日志自动刷新定时器
+        if (this.logRefreshTimer) {
+            clearInterval(this.logRefreshTimer);
+            this.logRefreshTimer = null;
+        }
     }
 };
 

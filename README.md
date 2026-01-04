@@ -221,6 +221,7 @@ start.bat
 | POST | `/chat/reset-all` | 重置所有记忆 |
 | GET | `/chat/scene` | 获取场景信息 |
 | GET | `/chat/logs` | 获取日志 |
+| GET | `/chat/log-file` | 获取实时日志文件内容 |
 | GET | `/chat/health` | 健康检查 |
 
 ---
@@ -238,8 +239,12 @@ start.bat
 - `checkChatStatus()` - 检查服务状态并自动初始化（每30秒）
 - `sendMessage()` - 发送消息
 - `resetAllMemory()` - 重置记忆
+- `showLogs()` - 显示实时日志窗口
+- `refreshLogFile()` - 刷新日志文件内容
+- `toggleAutoRefresh()` - 切换日志自动刷新（每3秒）
 
 **健康检测**: 每30秒自动检测后端服务状态
+**日志查看**: 点击顶部菜单"系统日志"查看实时日志，支持自动刷新
 
 ### chat.js - 对话模块
 

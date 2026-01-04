@@ -33,6 +33,7 @@ coc_structure/
   - `POST /chat/reset-all` - 重置所有场景记忆
   - `GET /chat/scene` - 获取当前场景信息
   - `GET /chat/logs` - 获取系统日志
+  - `GET /chat/log-file` - 获取实时日志文件内容(all.log)
   - `POST /chat/scene/new` - 进入新场景
   - `POST /chat/scene/exit` - 退出当前场景
 - **核心变量**:

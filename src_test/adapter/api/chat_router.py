@@ -233,3 +233,68 @@ def exit_current_scene():
     except Exception as e:
         add_log('error', f'退出场景失败: {str(e)}')
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/log-file')
+def get_log_file():
+    """获取最新的all.log日志文件内容"""
+    import os
+    import re
+
+    try:
+        # 获取项目根目录（从当前文件向上3级）
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        logs_dir = os.path.join(project_root, "logs")
+
+        logger.info(f"查找日志目录: {logs_dir}")
+
+        if not os.path.exists(logs_dir):
+            return {'success': True, 'content': f'日志目录不存在: {logs_dir}'}
+
+        # 获取所有日志文件夹
+        log_folders = []
+        try:
+            for item in os.listdir(logs_dir):
+                item_path = os.path.join(logs_dir, item)
+                if os.path.isdir(item_path):
+                    # 匹配格式: YYYYMMDD_HHMMSS_pidXXXXX
+                    if re.match(r'^\d{8}_\d{6}_pid\d+$', item):
+                        log_folders.append((item, item_path))
+        except PermissionError:
+            pass
+
+        # 按名称排序（最新的在前）
+        log_folders.sort(key=lambda x: x[0], reverse=True)
+
+        if not log_folders:
+            return {'success': True, 'content': '暂无日志文件'}
+
+        # 获取最新的日志文件夹
+        latest_log_dir_name, latest_log_dir = log_folders[0]
+        all_log_path = os.path.join(latest_log_dir, "all.log")
+
+        logger.info(f"读取日志文件: {all_log_path}")
+
+        if not os.path.exists(all_log_path):
+            return {'success': True, 'content': f'日志文件不存在: {all_log_path}'}
+
+        # 读取日志文件内容（只读取最后1000行）
+        try:
+            with open(all_log_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # 只返回最后1000行
+                content = ''.join(lines[-1000:]) if len(lines) > 1000 else ''.join(lines)
+        except Exception as e:
+            content = f'读取日志文件失败: {str(e)}'
+            logger.error(f"读取日志文件失败: {str(e)}")
+
+        return {
+            'success': True,
+            'content': content,
+            'log_folder': latest_log_dir_name,
+            'line_count': len(lines)
+        }
+    except Exception as e:
+        logger.error(f'获取日志文件失败: {str(e)}', exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
