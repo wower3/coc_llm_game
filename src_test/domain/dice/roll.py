@@ -7,6 +7,9 @@ import operator
 from typing import List, Optional
 
 from src_test.domain.dice.expr import Roll, compile
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("DICE")
 
 OP_MAP = {
     ">": operator.gt,
@@ -20,18 +23,19 @@ OP_MAP = {
 }
 
 
-def roll(expr_str: str, op_str: Optional[str] = None, target_str: Optional[str] = None) -> List[str]:
+def roll(expr_str: str, op_str: Optional[str] = None, target_str: Optional[str] = None):
     messages = []
 
     try:
         expr = compile(expr_str)
-    except:
+    except Exception as e:
+        logger.error(f"[骰子] 表达式解析失败: {expr_str}, 错误: {str(e)}", exc_info=True)
         expr = None
 
     if expr is None:
         messages.append("roll 命令表达式错误")
         messages.append("表达式举例：3d6+1d3-1")
-        return messages
+        return messages, 0
 
     op = target = None
     if op_str:

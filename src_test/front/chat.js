@@ -76,9 +76,18 @@ const ChatModule = {
 
         this.isWaitingResponse = true;
         try {
+            // 获取 token 并添加到 Authorization header
+            const token = localStorage.getItem('authToken');
+            console.log('[ChatModule] authToken from localStorage:', token ? `Bearer ${token.substring(0, 20)}...` : 'null');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            console.log('[ChatModule] Request headers:', headers);
+
             const response = await fetch(`${this.CHAT_API_URL}/send`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify({ message: message.trim() })
             });
 

@@ -7,6 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>COC 跑团游戏</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         * {
@@ -927,11 +928,34 @@
             gap: 10px;
         }
 
-        .logs-content {
+        .log-content {
             flex: 1;
             padding: 15px;
             overflow-y: auto;
             max-height: 60vh;
+            background: #1a1a2e;
+        }
+
+        .log-file-content {
+            padding: 10px;
+            background: #0a0a14;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: #ccc;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 55vh;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .log-file-info {
+            padding: 10px 15px;
+            background: rgba(15, 52, 96, 0.3);
+            border-bottom: 1px solid #0f3460;
+            font-size: 12px;
+            color: #4ecdc4;
         }
 
         .log-item {
@@ -1274,25 +1298,29 @@
         </div>
 
         <!-- 日志弹窗 -->
-        <div v-if="logsVisible" class="logs-modal" @click.self="logsVisible = false">
+        <div v-if="logsVisible" class="logs-modal" @click.self="closeLogs">
             <div class="logs-container">
                 <div class="logs-header">
                     <h3>系统日志</h3>
                     <div class="logs-header-btns">
-                        <button class="btn-chat btn-chat-start" @click="refreshLogs">刷新</button>
-                        <button class="btn-chat btn-chat-stop" @click="clearLogs">清空</button>
-                        <button class="btn-chat" style="background:#888" @click="logsVisible = false">关闭</button>
+                        <button class="btn-chat btn-chat-start" @click="refreshLogFile">刷新</button>
+                        <button class="btn-chat" :class="logAutoRefresh ? 'btn-chat-stop' : 'btn-chat-start'" @click="toggleAutoRefresh">
+                            {{ logAutoRefresh ? '停止自动' : '自动刷新' }}
+                        </button>
+                        <button class="btn-chat" style="background:#888" @click="closeLogs">关闭</button>
                     </div>
                 </div>
+                <div class="log-file-info" v-if="logFileInfo">
+                    文件夹: {{ logFileInfo.folder }} | 行数: {{ logFileInfo.lines }}
+                </div>
                 <div class="logs-content">
-                    <div v-if="logs.length === 0" style="color:#888;text-align:center;padding:20px;">
-                        暂无日志
+                    <div v-if="loadingLogFile" style="color:#888;text-align:center;padding:20px;">
+                        加载中...
                     </div>
-                    <div v-for="(log, index) in logs" :key="index" :class="['log-item', log.type]">
-                        <span class="log-time">[{{ log.time }}]</span>
-                        <span :class="['log-type', log.type]">{{ log.type.toUpperCase() }}</span>
-                        <span>{{ log.content }}</span>
+                    <div v-else-if="!logFileContent" style="color:#888;text-align:center;padding:20px;">
+                        暂无日志内容
                     </div>
+                    <div v-else class="log-file-content" ref="logFileContentRef">{{ logFileContent }}</div>
                 </div>
             </div>
         </div>

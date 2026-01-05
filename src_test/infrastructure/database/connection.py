@@ -8,6 +8,9 @@ import pymysql
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from pathlib import Path
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("DATABASE")
 
 
 class DatabaseConnection:
@@ -57,7 +60,7 @@ class DatabaseConnection:
             finally:
                 connection.close()
         except Exception as e:
-            print(f"数据库查询错误: {e}")
+            logger.error(f"数据库查询错误: {e}", exc_info=True)
             return []
 
     def execute_update(self, sql_query: str) -> bool:
@@ -71,10 +74,10 @@ class DatabaseConnection:
                 return True
             except Exception as e:
                 connection.rollback()
-                print(f"数据库更新错误: {e}")
+                logger.error(f"数据库更新错误: {e}", exc_info=True)
                 return False
             finally:
                 connection.close()
         except Exception as e:
-            print(f"数据库连接错误: {e}")
+            logger.error(f"数据库连接错误: {e}", exc_info=True)
             return False

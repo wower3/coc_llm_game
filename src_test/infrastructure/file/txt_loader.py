@@ -7,6 +7,9 @@ import os
 import re
 import json
 from typing import Dict, List, Any, Optional
+from src_test.infrastructure.log import get_logger
+
+logger = get_logger("FILE")
 
 
 class TxtContentLoader:
@@ -26,9 +29,9 @@ class TxtContentLoader:
             except UnicodeDecodeError:
                 continue
             except Exception as e:
-                print(f"读取文件 {file_path} 失败 ({encoding}): {e}")
+                logger.warning(f"读取文件 {file_path} 失败 ({encoding}): {e}")
                 continue
-        print(f"无法用任何编码读取文件: {file_path}")
+        logger.error(f"无法用任何编码读取文件: {file_path}")
         return None
 
     def read_txt_file_lines(self, file_path: str) -> Optional[List[str]]:
@@ -40,9 +43,9 @@ class TxtContentLoader:
             except UnicodeDecodeError:
                 continue
             except Exception as e:
-                print(f"读取文件 {file_path} 失败 ({encoding}): {e}")
+                logger.warning(f"读取文件 {file_path} 失败 ({encoding}): {e}")
                 continue
-        print(f"无法用任何编码读取文件: {file_path}")
+        logger.error(f"无法用任何编码读取文件: {file_path}")
         return None
 
     def extract_content_by_keyword(self, content: str, keyword: str,

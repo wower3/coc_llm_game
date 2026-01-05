@@ -159,18 +159,50 @@ coc_structure/
 
 ## 快速开始
 
-### 1. 环境准备
+### 一键启动（推荐）
+
+项目已配置为独立的虚拟环境，无需手动安装依赖：
+
+#### Windows 用户
 
 ```bash
-# 创建conda环境
-conda create -n python20251006 python=3.10
-conda activate python20251006
+# 1. 首次运行：安装虚拟环境
+setup_venv.bat
+
+# 2. 启动游戏
+start.bat
+```
+
+#### Linux/Mac 用户
+
+```bash
+# 1. 首次运行：安装虚拟环境
+chmod +x setup_venv.sh start.sh
+./setup_venv.sh
+
+# 2. 启动游戏
+./start.sh
+```
+
+### 手动安装（可选）
+
+如果需要手动安装：
+
+```bash
+# 创建虚拟环境
+python -m venv venv
+
+# 激活虚拟环境
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
 
 # 安装依赖(使用清华源)
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-### 2. 配置环境变量
+### 配置环境变量
 
 在项目根目录创建 `.env` 文件：
 
@@ -179,24 +211,17 @@ DEEPSEEK_API_KEY=your_api_key_here
 DEEPSEEK_URL=https://api.deepseek.com
 ```
 
-### 3. 测试日志功能
-
-```bash
-python test_log.py
-```
-
-检查 `logs/` 目录下生成的日志文件。
-
-### 4. 启动服务
-
-```bash
-cd src_test/front
-start.bat
-```
-
-### 5. 访问游戏
+### 访问游戏
 
 浏览器打开: `http://localhost:5770/game.html`
+
+### 服务地址
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 前端 | http://localhost:5770 | 游戏页面 |
+| 后端 | http://localhost:5780 | API 服务 |
+| API 文档 | http://localhost:5780/docs | Swagger 文档 |
 
 ---
 
@@ -221,6 +246,7 @@ start.bat
 | POST | `/chat/reset-all` | 重置所有记忆 |
 | GET | `/chat/scene` | 获取场景信息 |
 | GET | `/chat/logs` | 获取日志 |
+| GET | `/chat/log-file` | 获取实时日志文件内容 |
 | GET | `/chat/health` | 健康检查 |
 
 ---
@@ -238,8 +264,12 @@ start.bat
 - `checkChatStatus()` - 检查服务状态并自动初始化（每30秒）
 - `sendMessage()` - 发送消息
 - `resetAllMemory()` - 重置记忆
+- `showLogs()` - 显示实时日志窗口
+- `refreshLogFile()` - 刷新日志文件内容
+- `toggleAutoRefresh()` - 切换日志自动刷新（每3秒）
 
 **健康检测**: 每30秒自动检测后端服务状态
+**日志查看**: 点击顶部菜单"系统日志"查看实时日志，支持自动刷新
 
 ### chat.js - 对话模块
 

@@ -4,10 +4,13 @@ COC 跑团游戏后端 API 主入口
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src_test.infrastructure.log import get_logger
 
 from src_test.adapter.api.auth_router import router as auth_router
 from src_test.adapter.api.chat_router import router as chat_router
 from src_test.adapter.api.player_router import router as player_router
+
+logger = get_logger("API")
 
 app = FastAPI(
     title="COC Backend API",
@@ -29,11 +32,12 @@ app.include_router(auth_router)
 
 @app.get('/health')
 def health_check():
+    logger.info("[API] 后端健康检查")
     return {'status': 'ok', 'message': 'COC Backend API 服务运行中'}
 
 
 if __name__ == '__main__':
     import uvicorn
-    print("COC 跑团游戏后端服务")
-    print("统一服务地址: http://localhost:5780")
+    logger.info("COC 跑团游戏后端服务启动")
+    logger.info("统一服务地址: http://localhost:5780")
     uvicorn.run(app, host='0.0.0.0', port=5780)

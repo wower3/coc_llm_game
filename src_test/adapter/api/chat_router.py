@@ -2,9 +2,10 @@
 COC 对话服务路由
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
 from src_test.infrastructure.log import get_logger
 
@@ -61,9 +62,32 @@ def init_agent():
 
 
 @router.post('/send')
-def send_message(data: MessageRequest):
+def send_message(
+    data: MessageRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    发送消息给Agent
+
+    authorization: Bearer token格式的认证头，用于提取当前用户ID
+    """
     from langchain.messages import HumanMessage
     global thread_messages
+
+    # 解析token获取user_id
+    user_id = None
+    if authorization:
+        try:
+            from src_test.adapter.api.auth_router import verify_token
+            token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+            user_id = verify_token(token)
+            if user_id:
+                logger.info(f"[API] 已识别用户: {user_id}")
+        except Exception as e:
+            logger.warning(f"[API] Token解析失败: {str(e)}")
+    else:
+        logger.warning("[API] 未提供Authorization头")
+
     user_message = data.message.strip()
     if not user_message:
         logger.warning("[API] 收到空消息")
@@ -78,6 +102,11 @@ def send_message(data: MessageRequest):
     agent, tm, _ = get_agent()
     current_thread_id = tm.current_thread_id
     logger.debug(f"[API] 当前线程ID: {current_thread_id[:8]}, 场景: {tm.current_scene}, 深度: {tm.scene_depth}")
+
+    # 将 user_id 存储到 thread_user_map 中
+    from src_test.service.agent_service import set_user_id_for_thread
+    set_user_id_for_thread(current_thread_id, user_id)
+    logger.debug(f"[API] 设置线程用户映射: {current_thread_id[:8]} -> {user_id}")
 
     if current_thread_id not in thread_messages:
         thread_messages[current_thread_id] = []
@@ -232,4 +261,69 @@ def exit_current_scene():
         }
     except Exception as e:
         add_log('error', f'退出场景失败: {str(e)}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/log-file')
+def get_log_file():
+    """获取最新的all.log日志文件内容"""
+    import os
+    import re
+
+    try:
+        # 获取项目根目录（从当前文件向上3级）
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        logs_dir = os.path.join(project_root, "logs")
+
+        logger.info(f"查找日志目录: {logs_dir}")
+
+        if not os.path.exists(logs_dir):
+            return {'success': True, 'content': f'日志目录不存在: {logs_dir}'}
+
+        # 获取所有日志文件夹
+        log_folders = []
+        try:
+            for item in os.listdir(logs_dir):
+                item_path = os.path.join(logs_dir, item)
+                if os.path.isdir(item_path):
+                    # 匹配格式: YYYYMMDD_HHMMSS_pidXXXXX
+                    if re.match(r'^\d{8}_\d{6}_pid\d+$', item):
+                        log_folders.append((item, item_path))
+        except PermissionError:
+            pass
+
+        # 按名称排序（最新的在前）
+        log_folders.sort(key=lambda x: x[0], reverse=True)
+
+        if not log_folders:
+            return {'success': True, 'content': '暂无日志文件'}
+
+        # 获取最新的日志文件夹
+        latest_log_dir_name, latest_log_dir = log_folders[0]
+        all_log_path = os.path.join(latest_log_dir, "all.log")
+
+        logger.info(f"读取日志文件: {all_log_path}")
+
+        if not os.path.exists(all_log_path):
+            return {'success': True, 'content': f'日志文件不存在: {all_log_path}'}
+
+        # 读取日志文件内容（只读取最后1000行）
+        try:
+            with open(all_log_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # 只返回最后1000行
+                content = ''.join(lines[-1000:]) if len(lines) > 1000 else ''.join(lines)
+        except Exception as e:
+            content = f'读取日志文件失败: {str(e)}'
+            logger.error(f"读取日志文件失败: {str(e)}")
+
+        return {
+            'success': True,
+            'content': content,
+            'log_folder': latest_log_dir_name,
+            'line_count': len(lines)
+        }
+    except Exception as e:
+        logger.error(f'获取日志文件失败: {str(e)}', exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
