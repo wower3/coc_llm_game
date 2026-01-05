@@ -30,6 +30,20 @@ app.include_router(chat_router)
 app.include_router(auth_router)
 
 
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时预热数据库连接"""
+    logger.info("[API] 应用启动，预热数据库连接...")
+    try:
+        from src_test.infrastructure.database import get_repository
+        repo = get_repository()
+        # 触发数据库连接初始化
+        _ = repo.db
+        logger.info("[API] 数据库连接预热完成")
+    except Exception as e:
+        logger.warning(f"[API] 数据库连接预热失败（将在首次请求时重试）: {e}")
+
+
 @app.get('/health')
 def health_check():
     logger.info("[API] 后端健康检查")
