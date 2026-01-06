@@ -49,13 +49,19 @@ class DatabaseConnection:
             cursorclass=pymysql.cursors.DictCursor
         )
 
-    def execute_query(self, sql_query: str) -> List[Dict[str, Any]]:
-        """执行 SQL 查询并返回字典列表"""
+    def execute_query(self, sql_query: str, params: tuple = None) -> List[Dict[str, Any]]:
+        """
+        执行 SQL 查询并返回字典列表
+
+        :param sql_query: SQL 查询语句
+        :param params: 查询参数元组，用于参数化查询
+        :return: 查询结果字典列表
+        """
         try:
             connection = self.get_connection()
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute(sql_query)
+                    cursor.execute(sql_query, params)
                     return cursor.fetchall()
             finally:
                 connection.close()
@@ -63,13 +69,19 @@ class DatabaseConnection:
             logger.error(f"数据库查询错误: {e}", exc_info=True)
             return []
 
-    def execute_update(self, sql_query: str) -> bool:
-        """执行 SQL 更新操作"""
+    def execute_update(self, sql_query: str, params: tuple = None) -> bool:
+        """
+        执行 SQL 更新操作
+
+        :param sql_query: SQL 更新语句
+        :param params: 更新参数元组，用于参数化查询
+        :return: 是否执行成功
+        """
         try:
             connection = self.get_connection()
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute(sql_query)
+                    cursor.execute(sql_query, params)
                 connection.commit()
                 return True
             except Exception as e:

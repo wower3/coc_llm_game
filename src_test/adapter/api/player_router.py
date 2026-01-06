@@ -4,8 +4,21 @@ COC 玩家数据路由
 """
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["玩家数据"])
+
+
+class SkillsRequest(BaseModel):
+    """获取技能列表请求参数"""
+    player_id: str
+    min_value: int = 20
+
+
+class SkillQueryRequest(BaseModel):
+    """查询单个技能请求参数"""
+    player_id: str
+    query: str
 
 # 延迟加载服务
 _player_service = None
@@ -37,12 +50,12 @@ def get_player(player_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get('/skills/{player_id}')
-def get_skills(player_id: str):
-    """获取玩家技能信息（数值大于15的技能）"""
+@router.post('/skills')
+def get_skills(request: SkillsRequest):
+    """获取玩家技能信息（数值大于等于指定值的技能，默认20）"""
     try:
         service = get_service()
-        filtered_skills = service.get_filtered_skills(player_id, min_value=15)
+        filtered_skills = service.get_filtered_skills(request.player_id, min_value=request.min_value)
         return {'success': True, 'data': filtered_skills}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,6 +68,32 @@ def get_chinese_name(skill_id: str):
         service = get_service()
         name = service.get_skill_chinese_name(skill_id)
         return {'success': True, 'data': {'id': skill_id, 'name': name}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/skill/query')
+def query_skill_by_name_or_id(request: SkillQueryRequest):
+    """通过技能中文名或ID查询玩家技能值"""
+    try:
+        service = get_service()
+        skill_data = service.get_skill_value_by_name_or_id(request.player_id, request.query)
+        if not skill_data:
+            raise HTTPException(status_code=404, detail=f'未找到技能: {request.query}')
+        return {'success': True, 'data': skill_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/equipments/{player_id}')
+def get_equipments(player_id: str):
+    """获取玩家装备列表"""
+    try:
+        service = get_service()
+        equipments = service.get_player_equipments(player_id)
+        return {'success': True, 'data': equipments}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

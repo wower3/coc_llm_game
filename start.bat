@@ -36,20 +36,26 @@ if errorlevel 1 (
 :: Check and close occupied ports
 echo [1/4] 检查端口占用...
 
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5780 ^| findstr LISTENING 2^>nul') do (
-    echo   关闭端口 5780...
-    taskkill /PID %%a /F >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5770 ^| findstr LISTENING 2^>nul') do (
-    echo   关闭端口 5770...
-    taskkill /PID %%a /F >nul 2>&1
+:: 清理5780端口（后端）
+echo   正在清理端口 5780...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5780" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
 )
 
-timeout /t 1 /nobreak >nul
+:: 清理5770端口（前端）
+echo   正在清理端口 5770...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5770" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
+)
+
+echo   端口清理完成
+
+:: 等待端口完全释放
+timeout /t 2 /nobreak >nul
 
 :: Start backend service
 echo [2/4] 启动后端服务 (FastAPI - 端口 5780)...
-start "Backend-5780" cmd /k "cd /d %SCRIPT_DIR% && call venv\Scripts\activate.bat && python -m src_test.adapter.api.main || pause"
+start "Backend-5780" cmd /k "cd /d %SCRIPT_DIR% && call venv\Scripts\activate.bat && python -m src_test.adapter.api.main"
 timeout /t 3 /nobreak >nul
 
 :: Start frontend service
@@ -78,29 +84,41 @@ echo.
 echo 正在关闭所有服务...
 
 :: Close port processes
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5780 ^| findstr LISTENING 2^>nul') do (
-    echo   关闭端口 5780 (后端)
-    taskkill /PID %%a /F >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5770 ^| findstr LISTENING 2^>nul') do (
-    echo   关闭端口 5770 (前端)
-    taskkill /PID %%a /F >nul 2>&1
+echo   正在关闭端口 5780 (后端)...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5780" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
 )
 
-:: Close cmd windows
-taskkill /FI "WINDOWTITLE eq Backend-5780*" /F >nul 2>&1
-taskkill /FI "WINDOWTITLE eq Frontend-5770*" /F >nul 2>&1
+echo   正在关闭端口 5770 (前端)...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5770" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
+)
 
+:: Close cmd windows by command line
+echo   正在关闭命令行窗口...
+
+:: 使用wmic查找包含特定标题的cmd进程并关闭
+for /f "tokens=2" %%p in ('wmic process where "name='cmd.exe' and commandline like '%%Backend-5780%%'" get processid 2^>nul ^| findstr /r "[0-9]"') do (
+    echo   找到后端窗口 PID: %%p，正在关闭...
+    taskkill /F /PID %%p >nul 2>&1
+)
+for /f "tokens=2" %%p in ('wmic process where "name='cmd.exe' and commandline like '%%Frontend-5770%%'" get processid 2^>nul ^| findstr /r "[0-9]"') do (
+    echo   找到前端窗口 PID: %%p，正在关闭...
+    taskkill /F /PID %%p >nul 2>&1
+)
+
+:: 等待进程完全关闭
 timeout /t 1 /nobreak >nul
 
-:: Check and close remaining ports
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5780 ^| findstr LISTENING 2^>nul') do (
-    taskkill /PID %%a /F >nul 2>&1
+:: Check and close remaining ports (二次确认)
+echo   确认端口已释放...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5780" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
 )
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5770 ^| findstr LISTENING 2^>nul') do (
-    taskkill /PID %%a /F >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5770" ^| findstr "LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a
 )
 
 echo.
 echo 所有服务已关闭
-timeout /t 2 /nobreak >nul
+timeout /t 1 /nobreak >nul

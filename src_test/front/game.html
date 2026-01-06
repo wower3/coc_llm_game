@@ -124,7 +124,7 @@
 
         .attr-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 8px;
         }
 
@@ -366,7 +366,8 @@
             gap: 8px;
         }
 
-        .item {
+        /* 武器保持长条样式 */
+        .item-weapon {
             background: rgba(15, 52, 96, 0.3);
             padding: 10px;
             border-radius: 6px;
@@ -374,27 +375,70 @@
             transition: all 0.3s;
         }
 
-        .item:hover {
+        .item-weapon:hover {
             background: rgba(15, 52, 96, 0.6);
             transform: translateX(5px);
         }
 
-        .item .item-name {
+        .item-weapon .item-name {
             font-size: 14px;
             font-weight: bold;
             color: #fff;
             margin-bottom: 3px;
+            text-align: left;
         }
 
-        .item .item-desc {
+        .item-weapon .item-desc {
             font-size: 11px;
             color: #888;
+            text-align: left;
         }
 
-        .item .item-stats {
+        .item-weapon .item-stats {
             font-size: 11px;
             color: #4ecdc4;
             margin-top: 5px;
+            text-align: left;
+        }
+
+        /* 道具和线索使用紧凑网格样式 */
+        .item-compact {
+            background: rgba(15, 52, 96, 0.3);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            display: inline-block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .item-compact:hover {
+            background: rgba(15, 52, 96, 0.6);
+        }
+
+        .item-compact .item-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .item-compact .item-desc {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .item-compact .item-desc:empty {
+            display: none;
+        }
+
+        /* 让道具和线索显示为网格 */
+        .item-list:has(.item-compact) {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
         }
 
         /* 选项栏 */
@@ -503,6 +547,82 @@
         .skill-item .skill-value {
             color: #4ecdc4;
             font-weight: bold;
+        }
+
+        /* 技能查询区域样式 */
+        .skill-query-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+        }
+
+        .skill-query-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .skill-query-input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .skill-query-input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .skill-query-input::placeholder {
+            color: #666;
+        }
+
+        .skill-result-item {
+            background: rgba(78, 205, 196, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #4ecdc4;
+            margin-top: 8px;
+        }
+
+        .skill-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .skill-result-name {
+            color: #4ecdc4;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .skill-result-value {
+            color: #e94560;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .skill-result-id {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .skills-list-section {
+            margin-top: 10px;
+        }
+
+        .skills-list-title {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed rgba(15, 52, 96, 0.3);
         }
 
         /* 折叠面板样式 */
@@ -1171,12 +1291,40 @@
                     </div>
                     <div :class="['collapse-content', { expanded: sections.skills }]">
                         <div class="collapse-content-inner">
-                            <div v-if="mainSkills.length === 0" class="loading">
-                                暂无技能数据
+                            <!-- 技能查询区域 -->
+                            <div class="skill-query-section">
+                                <div class="skill-query-input-group">
+                                    <input
+                                        type="text"
+                                        class="skill-query-input"
+                                        v-model="skillQueryInput"
+                                        placeholder="输入技能名或ID查询"
+                                        @keyup.enter="querySkill"
+                                    />
+                                    <button class="btn-small btn-search" @click="querySkill" :disabled="!playerId || skillQueryLoading">
+                                        查询
+                                    </button>
+                                </div>
+                                <!-- 查询结果显示 -->
+                                <div v-if="queriedSkill" class="skill-result-item">
+                                    <div class="skill-result-header">
+                                        <span class="skill-result-name">{{ queriedSkill.name }}</span>
+                                        <span class="skill-result-value">{{ queriedSkill.value }}</span>
+                                    </div>
+                                    <div class="skill-result-id">ID: {{ queriedSkill.id }}</div>
+                                </div>
+                                <div v-if="skillQueryError" class="error-msg">{{ skillQueryError }}</div>
                             </div>
-                            <div class="skill-item" v-for="skill in mainSkills" :key="skill.id">
-                                <span class="skill-name">{{ skill.name }}</span>
-                                <span class="skill-value">{{ skill.value }}</span>
+                            <!-- 技能列表 -->
+                            <div class="skills-list-section">
+                                <div class="skills-list-title">技能值 ≥ 20:</div>
+                                <div v-if="mainSkills.length === 0" class="loading">
+                                    暂无技能数据
+                                </div>
+                                <div class="skill-item" v-for="skill in mainSkills" :key="skill.id">
+                                    <span class="skill-name">{{ skill.name }}</span>
+                                    <span class="skill-value">{{ skill.value }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1245,16 +1393,16 @@
                         >线索</button>
                     </div>
                     <div class="item-list">
-                        <div v-if="inventoryTab === 'weapons'" v-for="weapon in weapons" :key="weapon.name" class="item">
+                        <div v-if="inventoryTab === 'weapons'" v-for="weapon in weapons" :key="weapon.name" class="item item-weapon">
                             <div class="item-name">{{ weapon.name }}</div>
                             <div class="item-desc">{{ weapon.type }}</div>
                             <div class="item-stats">伤害: {{ weapon.damage }} | 射程: {{ weapon.range }}</div>
                         </div>
-                        <div v-if="inventoryTab === 'items'" v-for="item in items" :key="item.name" class="item">
+                        <div v-if="inventoryTab === 'items'" v-for="item in items" :key="item.name" class="item item-compact">
                             <div class="item-name">{{ item.name }}</div>
                             <div class="item-desc">{{ item.desc }}</div>
                         </div>
-                        <div v-if="inventoryTab === 'clues'" v-for="clue in clues" :key="clue.name" class="item">
+                        <div v-if="inventoryTab === 'clues'" v-for="clue in clues" :key="clue.name" class="item item-compact">
                             <div class="item-name">{{ clue.name }}</div>
                             <div class="item-desc">{{ clue.desc }}</div>
                         </div>
