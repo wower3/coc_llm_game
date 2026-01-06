@@ -97,7 +97,7 @@ class PlayerRepository:
             logger.warning(f"[数据库] 更新玩家卡片失败: user_id={user_id}")
         return result
 
-    def get_skill_card(self, user_id: str) -> SkillsModel:
+    def get_skill_card(self, user_id: str):
         """获取玩家技能卡片信息"""
         logger.debug(f"[数据库] 查询玩家技能卡片: user_id={user_id}")
         try:

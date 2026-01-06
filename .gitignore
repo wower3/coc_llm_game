@@ -46,12 +46,13 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # 忽略所有日志文件和日志目录
-logs/
+logs/*
 *.log
 
 # 但保留logs目录下的脚本文件
 !logs/*.bat
 !logs/*.sh
+!logs/*.ps1
 
 # === IDE 与系统文件 ===
 # PyCharm
