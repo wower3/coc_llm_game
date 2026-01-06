@@ -40,7 +40,7 @@ const App = {
             // 面板宽度
             leftPanelWidth: 290,
             rightPanelWidth: 300,
-            optionsPanelHeight: 200,
+            optionsPanelHeight: 280,
             isResizing: false,
             resizeType: null,
 
@@ -85,8 +85,14 @@ const App = {
                 luck: 0
             },
 
-            // 技能列表（从数据库加载，数值>10的技能）
+            // 技能列表（从数据库加载，数值>=20的技能）
             mainSkills: [],
+
+            // 技能查询相关
+            skillQueryInput: '',
+            skillQueryLoading: false,
+            skillQueryError: '',
+            queriedSkill: null,
 
             // 武器列表
             weapons: [
@@ -104,13 +110,8 @@ const App = {
                 }
             ],
 
-            // 道具列表
-            items: [
-                { name: '手电筒', desc: '可以照亮黑暗区域' },
-                { name: '笔记本', desc: '记录调查线索' },
-                { name: '放大镜', desc: '检查细节时有帮助' },
-                { name: '急救包', desc: '可进行急救，恢复1D3 HP' }
-            ],
+            // 道具列表（从数据库加载）
+            items: [],
 
             // 线索列表
             clues: [
@@ -207,6 +208,7 @@ const App = {
             const success = await this.loadPlayerData();
             if (success) {
                 await this.loadSkillsData();
+                await this.loadEquipments();
                 this.playerFound = true;
             }
         },
@@ -220,6 +222,7 @@ const App = {
             this.errorMsg = '';
             await this.loadPlayerData();
             await this.loadSkillsData();
+            await this.loadEquipments();
         },
 
         // 登录
@@ -266,6 +269,7 @@ const App = {
                 san: 0, maxSan: 99, mp: 0, maxMp: 0, luck: 0
             };
             this.mainSkills = [];
+            this.items = [];
         },
 
         // 检查对话服务状态
@@ -480,6 +484,7 @@ const App = {
             this.errorMsg = '';
             let success = false;
             try {
+                // 使用老接口 /player/{player_id}
                 const response = await fetch(`${this.apiBaseUrl}/player/${this.playerId}`);
                 const result = await response.json();
 
@@ -520,7 +525,12 @@ const App = {
         // 从API加载技能数据
         async loadSkillsData() {
             try {
-                const response = await fetch(`${this.apiBaseUrl}/skills/${this.playerId}`);
+                // 使用 POST 方法传递参数
+                const response = await fetch(`${this.apiBaseUrl}/skills`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_id: this.playerId, min_value: 20 })
+                });
                 const result = await response.json();
 
                 if (result.success) {
@@ -528,6 +538,70 @@ const App = {
                 }
             } catch (error) {
                 console.error('加载技能数据失败:', error);
+            }
+        },
+
+        // 从API加载装备数据
+        async loadEquipments() {
+            try {
+                // 使用老接口 /equipments/{player_id}
+                const response = await fetch(`${this.apiBaseUrl}/equipments/${this.playerId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // 处理装备数据，如果equipments是字符串数组则转换为对象数组
+                    this.items = result.data.map((item, index) => {
+                        if (typeof item === 'string') {
+                            return { name: item, desc: '' };
+                        }
+                        return item;
+                    });
+                } else {
+                    // API返回失败，清空items
+                    this.items = [];
+                }
+            } catch (error) {
+                console.error('加载装备数据失败:', error);
+                // 加载失败时清空items，避免显示旧数据
+                this.items = [];
+            }
+        },
+
+        // 查询单个技能（通过技能名或ID）
+        async querySkill() {
+            if (!this.skillQueryInput.trim()) {
+                this.skillQueryError = '请输入技能名或ID';
+                return;
+            }
+            if (!this.playerId) {
+                this.skillQueryError = '请先查询调查员';
+                return;
+            }
+
+            this.skillQueryError = '';
+            this.skillQueryLoading = true;
+            this.queriedSkill = null;
+
+            try {
+                const query = this.skillQueryInput.trim();
+                // 使用 POST 方法传递参数，避免中文编码问题
+                const response = await fetch(`${this.apiBaseUrl}/skill/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_id: this.playerId, query })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    this.queriedSkill = result.data;
+                } else {
+                    this.skillQueryError = result.detail || '未找到该技能';
+                }
+            } catch (error) {
+                console.error('查询技能失败:', error);
+                this.skillQueryError = '查询失败: ' + error.message;
+            } finally {
+                this.skillQueryLoading = false;
             }
         },
 
@@ -594,6 +668,7 @@ const App = {
                     if (self.isLoggedIn) {
                         self.loadPlayerData();
                         self.loadSkillsData();
+                        self.loadEquipments();
                     }
                     // 刷新场景信息
                     await self.refreshSceneInfo();
@@ -848,7 +923,7 @@ const App = {
         },
 
         // 读档
-        loadGame() {
+        async loadGame() {
             const saveData = localStorage.getItem('cocGameSave');
             if (saveData) {
                 const data = JSON.parse(saveData);
@@ -861,6 +936,10 @@ const App = {
                 this.currentSceneName = data.currentSceneName;
                 this.options = data.options;
                 alert('游戏已读取！');
+                // 重新从数据库加载装备数据，确保显示最新数据
+                if (this.isLoggedIn) {
+                    await this.loadEquipments();
+                }
                 this.$nextTick(() => {
                     this.scrollToBottom();
                 });
@@ -888,6 +967,7 @@ const App = {
             this.isLoggedIn = true;
             this.loadPlayerData();
             this.loadSkillsData();
+            this.loadEquipments();
         }
 
         // 滚动到底部

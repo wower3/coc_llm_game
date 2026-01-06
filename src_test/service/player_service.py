@@ -106,7 +106,7 @@ class PlayerService:
         :return: 技能中文名称，如果未找到返回原ID
         """
         logger.debug(f"[玩家服务] 查询技能中文名: skill_id={skill_id}")
-        return self.repository.get_id(skill_id)
+        return self.repository.get_name_by_id(skill_id)
 
     def get_all_chinese_names(self) -> Dict[str, str]:
         """
@@ -114,9 +114,92 @@ class PlayerService:
 
         :return: 技能ID到中文名称的映射字典
         """
-        sql = "SELECT id, name FROM chinese_name"
-        results = self.repository.db.execute_query(sql)
-        return {row['id']: row['name'] for row in results}
+        return self.repository.get_all_chinese_names()
+
+    def get_single_skill_value(self, player_id: str, skill_id: str) -> Optional[Dict[str, Any]]:
+        """
+        获取玩家单个技能的值
+
+        :param player_id: 玩家ID
+        :param skill_id: 技能ID
+        :return: 包含技能ID、中文名和值的字典，如果未找到返回 None
+        """
+        logger.debug(f"[玩家服务] 查询单个技能值: player_id={player_id}, skill_id={skill_id}")
+        skill_value = self.repository.get_single_skill_value(player_id, skill_id)
+
+        if skill_value is None:
+            logger.debug(f"[玩家服务] 未找到技能值: player_id={player_id}, skill_id={skill_id}")
+            return None
+
+        # 获取技能中文名
+        skill_name = self.get_skill_chinese_name(skill_id)
+
+        return {
+            'id': skill_id,
+            'name': skill_name,
+            'value': skill_value
+        }
+
+    def get_skill_id_by_name(self, skill_name: str) -> Optional[str]:
+        """
+        通过技能中文名获取技能ID
+
+        :param skill_name: 技能中文名
+        :return: 技能ID，如果未找到返回 None
+        """
+        return self.repository.get_skill_id_by_name(skill_name)
+
+    def get_skill_value_by_name_or_id(self, player_id: str, skill_query: str) -> Optional[Dict[str, Any]]:
+        """
+        通过技能中文名或ID查询玩家技能值
+
+        :param player_id: 玩家ID
+        :param skill_query: 技能中文名或ID
+        :return: 包含技能ID、中文名和值的字典，如果未找到返回 None
+        """
+        logger.debug(f"[玩家服务] 通过名称或ID查询技能: player_id={player_id}, query={skill_query}")
+
+        # 先尝试作为技能ID查询
+        skill_value = self.repository.get_single_skill_value(player_id, skill_query)
+
+        # 如果作为ID查不到，尝试作为中文名查询
+        if skill_value is None:
+            skill_id = self.get_skill_id_by_name(skill_query)
+            if skill_id:
+                skill_value = self.repository.get_single_skill_value(player_id, skill_id)
+                if skill_value is not None:
+                    skill_name = skill_query
+                    skill_id_resolved = skill_id
+                    return {
+                        'id': skill_id_resolved,
+                        'name': skill_name,
+                        'value': skill_value
+                    }
+            return None
+
+        # 作为ID查到了，获取中文名
+        skill_name = self.get_skill_chinese_name(skill_query)
+        return {
+            'id': skill_query,
+            'name': skill_name,
+            'value': skill_value
+        }
+
+    def get_player_equipments(self, player_id: str) -> List[Any]:
+        """
+        获取玩家装备列表
+
+        :param player_id: 玩家ID
+        :return: 装备列表，如果未找到返回空列表
+        """
+        logger.debug(f"[玩家服务] 查询玩家装备: player_id={player_id}")
+        player = self.repository.get_user_card(player_id)
+
+        if not player or not player.equipments:
+            logger.debug(f"[玩家服务] 未找到玩家装备: player_id={player_id}")
+            return []
+
+        return player.equipments
 
 
 # 全局服务实例（延迟加载）
