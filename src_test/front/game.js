@@ -7,6 +7,9 @@ const AUTH_BASE_URL = 'http://localhost:5780/auth';
 const App = {
     data() {
         return {
+            // 消息计数器（用于生成唯一ID）
+            messageCounter: 1,
+
             // API 配置
             apiBaseUrl: API_BASE_URL,
             playerId: '',
@@ -117,6 +120,7 @@ const App = {
             // 对话消息
             messages: [
                 {
+                    id: 'msg_1',
                     type: 'system',
                     content: '—— 游戏开始 ——'
                 }
@@ -133,6 +137,16 @@ const App = {
     },
 
     methods: {
+        // 添加消息（自动分配唯一ID）
+        addMessage(message) {
+            const newMessage = {
+                ...message,
+                id: 'msg_' + Date.now() + '_' + this.messageCounter++
+            };
+            this.messages.push(newMessage);
+            return newMessage;
+        },
+
         // 切换折叠面板
         toggleSection(section) {
             this.sections[section] = !this.sections[section];
@@ -385,7 +399,7 @@ const App = {
         // 进入新场景
         async enterScene(scene) {
             // 添加玩家选择的消息
-            this.messages.push({
+            this.addMessage({
                 type: 'player',
                 sender: '【' + this.character.name + '】',
                 content: '（进入场景：' + scene + '）'
@@ -398,7 +412,7 @@ const App = {
                 // 使用后端返回的最新场景列表
                 this.availableScenes = result.available_scenes || [];
                 // 添加系统消息
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '—— ' + result.message + ' ——'
                 });
@@ -406,7 +420,7 @@ const App = {
                 // 自动发送"继续"消息获取场景描述（流式传输）
                 await this.sendToAI('我已进入当前场景');
             } else {
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '进入场景失败: ' + (result.error || '未知错误')
                 });
@@ -421,7 +435,7 @@ const App = {
             }
 
             // 添加玩家选择的消息
-            this.messages.push({
+            this.addMessage({
                 type: 'player',
                 sender: '【' + this.character.name + '】',
                 content: '（退出当前场景）'
@@ -434,7 +448,7 @@ const App = {
                 // 使用后端返回的最新场景列表（退出场景不影响次数统计）
                 this.availableScenes = result.available_scenes || [];
                 // 添加系统消息
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '—— ' + result.message + ' ——'
                 });
@@ -444,7 +458,7 @@ const App = {
                                     在该场景中的经历如下：${result.agent_message}。请根据历史内容继续。
                                     `);
             } else {
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '退出场景失败: ' + (result.error || '未知错误')
                 });
@@ -524,7 +538,7 @@ const App = {
             if (!this.playerInput.trim()) return;
 
             // 添加玩家消息
-            this.messages.push({
+            this.addMessage({
                 type: 'player',
                 sender: '【' + this.character.name + '】',
                 content: this.playerInput
@@ -551,9 +565,9 @@ const App = {
         async sendToAI(message) {
             this.isWaitingAI = true;
 
-            // 先添加一个空的 AI 消息占位符
+            // 先添加一个空的 AI 消息占位符（带唯一ID）
             const aiMessageIndex = this.messages.length;
-            this.messages.push({
+            this.addMessage({
                 type: 'narrator',
                 sender: '【游戏主持人】',
                 content: ''
@@ -566,7 +580,7 @@ const App = {
             const self = this;
             await ChatModule.sendMessage(
                 message,
-                // onToken: 每收到一个 token 时更新消息
+                // onToken: 每收到一个 token 时更新消息（使用索引访问确保响应式）
                 (token) => {
                     self.messages[aiMessageIndex].content += token;
                     self.$nextTick(() => {
@@ -603,7 +617,7 @@ const App = {
             // 这里可以接入后端AI进行处理
             // 目前只是简单的示例响应
             setTimeout(() => {
-                this.messages.push({
+                this.addMessage({
                     type: 'narrator',
                     sender: '【旁白】',
                     content: '你的行动已被记录。守密人正在思考...'
@@ -615,7 +629,7 @@ const App = {
         // 选择选项
         selectOption(option) {
             // 添加玩家选择的消息
-            this.messages.push({
+            this.addMessage({
                 type: 'player',
                 sender: '【' + this.character.name + '】',
                 content: '（选择了：' + option.text + '）'
@@ -653,14 +667,14 @@ const App = {
         // 询问居民
         askResidents() {
             setTimeout(() => {
-                this.messages.push({
+                this.addMessage({
                     type: 'narrator',
                     sender: '【旁白】',
                     content: '你在墓地附近找到了一位正在修剪草坪的老人。他看起来对这片墓地非常熟悉。'
                 });
 
                 setTimeout(() => {
-                    this.messages.push({
+                    this.addMessage({
                         type: 'npc',
                         sender: '【老园丁 汤姆】',
                         content: '"啊，你也是来问那些怪事的吧？最近确实不太平静。我在这里工作了三十年，从没见过这样的事情。每到月圆之夜，金博尔家的墓碑附近就会传来奇怪的声音..."'
@@ -693,14 +707,14 @@ const App = {
             const skill = 60; // 侦查技能
 
             setTimeout(() => {
-                this.messages.push({
+                this.addMessage({
                     type: 'dice-roll',
                     content: `🎲 侦查检定: ${roll} / ${skill} - ${roll <= skill ? '成功！' : '失败'}`
                 });
 
                 setTimeout(() => {
                     if (roll <= skill) {
-                        this.messages.push({
+                        this.addMessage({
                             type: 'narrator',
                             sender: '【旁白】',
                             content: '你仔细观察墓地周围的环境。在一块较新的墓碑旁，你发现了一些奇怪的痕迹——泥土似乎被翻动过，而且有一些不寻常的脚印。这些脚印看起来不像是普通人留下的...'
@@ -711,7 +725,7 @@ const App = {
                             desc: '墓地中发现的不寻常脚印，形状怪异'
                         });
                     } else {
-                        this.messages.push({
+                        this.addMessage({
                             type: 'narrator',
                             sender: '【旁白】',
                             content: '你在墓地中四处查看，但没有发现什么特别的东西。也许需要更仔细地搜索，或者从其他途径获取信息。'
@@ -730,12 +744,12 @@ const App = {
                 this.currentScene = '场景2';
                 this.currentSceneName = '阿诺兹堡公共图书馆';
 
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '—— 场景转换：图书馆 ——'
                 });
 
-                this.messages.push({
+                this.addMessage({
                     type: 'narrator',
                     sender: '【旁白】',
                     content: '你来到了阿诺兹堡公共图书馆。这是一座维多利亚风格的建筑，里面收藏着大量关于当地历史的资料。图书管理员是一位戴着厚厚眼镜的中年女性，她正在整理书架。'
@@ -757,18 +771,18 @@ const App = {
                 this.currentScene = '场景3';
                 this.currentSceneName = '阿诺兹堡警察局';
 
-                this.messages.push({
+                this.addMessage({
                     type: 'system',
                     content: '—— 场景转换：警察局 ——'
                 });
 
-                this.messages.push({
+                this.addMessage({
                     type: 'narrator',
                     sender: '【旁白】',
                     content: '你走进了阿诺兹堡警察局。这是一座朴素的砖石建筑，里面只有几名警员在值班。一位看起来疲惫的警长坐在办公桌后面，正在处理文件。'
                 });
 
-                this.messages.push({
+                this.addMessage({
                     type: 'npc',
                     sender: '【警长 麦克唐纳】',
                     content: '"又一个来问墓地的事的？听着，我们已经派人去查过了，什么都没发现。可能只是一些野生动物，或者是那些无聊的年轻人在恶作剧。"'
@@ -792,7 +806,7 @@ const App = {
         // 掷骰子
         rollDice() {
             const roll = this.rollD100();
-            this.messages.push({
+            this.addMessage({
                 type: 'dice-roll',
                 content: `🎲 D100 掷骰结果: ${roll}`
             });
