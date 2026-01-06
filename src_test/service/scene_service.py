@@ -218,4 +218,67 @@ class McpService:
         """将场景字符串以空格分隔符拆分成列表"""
         if not scenes or not scenes.strip():
             return []
-        return scenes.strip().split() 
+        return scenes.strip().split()
+
+    def exit_scene_with_agent(self, exited_scene: str, return_scene: str, thread_messages: list = None) -> str:
+        """
+        退出场景并调用 single agent 生成响应
+
+        :param exited_scene: 退出的场景名称
+        :param return_scene: 返回的场景名称
+        :param thread_messages: 当前场景的对话历史
+        :return: agent 生成的响应文本
+        """
+        from langchain.messages import HumanMessage, SystemMessage, AIMessage
+        from src_test.service.single_agent_service import agent as single_agent
+
+        logger.info(f"[场景] 调用 single agent，退出场景: {exited_scene} -> {return_scene}")
+
+        # 构建消息列表
+        messages = []
+
+        # 添加空的系统提示词 TODO
+        messages.append(SystemMessage(content="将所有的历史内容进行简要的总结"))
+
+        # 添加对话历史
+        if thread_messages:
+            logger.debug(f"[场景] 开始添加 {len(thread_messages)} 条对话历史:")
+            for i, msg in enumerate(thread_messages):
+                messages.append(msg)
+                # 记录每条消息的详细内容
+                msg_type = type(msg).__name__
+                if hasattr(msg, 'content'):
+                    content = msg.content
+                    # 截断过长的内容以便日志查看
+                    content_preview = content[:100] + "..." if len(content) > 100 else content
+                    logger.debug(f"[场景]   消息 {i+1}: [{msg_type}] {content_preview}")
+                else:
+                    logger.debug(f"[场景]   消息 {i+1}: [{msg_type}] (无 content 属性)")
+        else:
+            # 如果没有对话历史，添加默认提示
+            messages.append(HumanMessage(content=f"玩家从场景「{exited_scene}」退回到场景「{return_scene}」。"))
+
+        try:
+            # 使用非流式调用
+            response = single_agent.invoke({"messages": messages})
+
+            # 提取响应内容
+            content = ""
+            if isinstance(response, dict):
+                if 'model' in response and 'messages' in response['model']:
+                    for msg in response['model']['messages']:
+                        if isinstance(msg, AIMessage) and hasattr(msg, 'content'):
+                            content = msg.content
+                            break
+                elif 'messages' in response:
+                    for msg in response['messages']:
+                        if isinstance(msg, AIMessage) and hasattr(msg, 'content'):
+                            content = msg.content
+                            break
+
+            logger.info(f"[场景] single agent 响应: {content[:100] if content else '(empty)'}...")
+            return content if content else f"你离开了{exited_scene}，回到了{return_scene}。"
+        except Exception as e:
+            logger.error(f"[场景] single agent 调用失败: {e}", exc_info=True)
+            # 返回默认描述
+            return f"你离开了{exited_scene}，回到了{return_scene}。" 

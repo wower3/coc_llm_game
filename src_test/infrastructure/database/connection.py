@@ -23,8 +23,8 @@ class DatabaseConnection:
         :param env_path: .env 文件路径，默认为 src_test 目录下的 .env
         """
         if env_path is None:
-            # 默认查找 src_test 目录下的 .env 文件
-            env_path = Path(__file__).parent.parent.parent / ".env"
+            # 默认查找项目根目录下的 .env 文件
+            env_path = Path(__file__).parent.parent.parent.parent / ".env"
 
         load_dotenv(env_path, override=True)
 

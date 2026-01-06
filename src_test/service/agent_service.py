@@ -144,32 +144,6 @@ def select_scene(scenes: str) -> str:
     available_scenes = mcp_service.select_scene(scenes)
     return "可选场景已更新"
 
-def new_scene(scene: str) -> str:
-    """
-    进入新的场景。
-
-    当模型判断需要进入新场景时调用此函数。
-    这将切换到一个新的记忆线程，使用场景特定的提示词（从txt文件加载）。
-    支持嵌套场景：可以在一个场景中进入另一个场景。
-
-    :param scene: 场景名称/关键词。
-    :return: 场景进入确认信息
-    """
-    return mcp_service.new_scene(scene)
-
-def exit_scene() -> str:
-    """
-    退出当前场景，返回上一个场景或主线程。
-
-    当场景探索完成或玩家要求离开时调用此函数。
-    如果当前在嵌套场景中，会返回到上一层场景；
-    如果只有一层场景，会返回到主线程。
-
-    :return: 退出确认信息
-    """
-    return mcp_service.exit_scene()
-
-
 # 工具列表
 tools = [roll_dice_tool, roll_attribute_check_tool, roll_sanity_check_tool, select_scene]
 

@@ -71,7 +71,7 @@ def send_message(
 
     authorization: Bearer token格式的认证头，用于提取当前用户ID
     """
-    from langchain.messages import HumanMessage
+    from langchain.messages import HumanMessage,AIMessage
     global thread_messages
 
     # 解析token获取user_id
@@ -124,6 +124,7 @@ def send_message(
                     full_response += token.content
                     yield f"data: {token.content}\n\n"
             logger.info(f"[API] AI响应完成: {full_response[:50]}...")
+            thread_messages[current_thread_id].append(AIMessage(content=full_response))
             yield "data: [DONE]\n\n"
         except Exception as e:
             logger.error(f"[API] 消息处理失败: {str(e)}", exc_info=True)
@@ -243,21 +244,44 @@ def enter_new_scene(data: NewSceneRequest):
 
 @router.post('/scene/exit')
 def exit_current_scene():
-    """退出当前场景（只切换场景，不获取AI描述，让前端通过/send继续对话）"""
+    """退出当前场景并调用 single agent 生成响应"""
     try:
         from src_test.service.agent_service import mcp_service, available_scenes
+        global thread_messages
         _, tm, _ = get_agent()
 
-        result = mcp_service.exit_scene()
-        add_log('info', f'退出场景，当前深度: {tm.scene_depth}')
+        # 先执行退出场景
+        if not tm.in_scene:
+            return {
+                'success': True,
+                'message': '当前不在任何场景中',
+                'scene_depth': tm.scene_depth,
+                'current_scene': tm.current_scene,
+                'in_scene': tm.in_scene,
+                'available_scenes': tm.get_available_scenes(available_scenes),
+                'agent_message': ''
+            }
+
+        # 获取当前线程的对话历史
+        current_thread_id = tm.current_thread_id
+        current_thread_messages = thread_messages.get(current_thread_id, [])
+        logger.info(f"[API] 当前线程 {current_thread_id[:8]} 有 {len(current_thread_messages)} 条对话")
+
+        # tm 是 ThreadManager 实例，直接调用 exit_scene()
+        exited_scene, return_scene, _ = tm.exit_scene()
+        add_log('info', f'退出场景: {exited_scene} -> {return_scene}')
+
+        # 调用 single agent 生成响应（传入对话历史）
+        agent_message = mcp_service.exit_scene_with_agent(exited_scene, return_scene, current_thread_messages)
 
         return {
             'success': True,
-            'message': result,
+            'message': f'已退出：{exited_scene}，返回：{return_scene}',
             'scene_depth': tm.scene_depth,
             'current_scene': tm.current_scene,
             'in_scene': tm.in_scene,
-            'available_scenes': tm.get_available_scenes(available_scenes)
+            'available_scenes': tm.get_available_scenes(available_scenes),
+            'agent_message': agent_message  # single agent 生成的响应
         }
     except Exception as e:
         add_log('error', f'退出场景失败: {str(e)}')
