@@ -10,6 +10,7 @@ from src_test.infrastructure.log import get_logger
 
 logger = get_logger("AGENT")
 from langchain_deepseek import ChatDeepSeek
+from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from langchain.tools import tool
 from pydantic import BaseModel, Field
@@ -134,14 +135,25 @@ def select_scene(scenes: str) -> str:
 
     当明确提到调用"select_scene"时调用此函数，否则不要调用这个工具。
     将场景名称以空格分隔传入，前端会显示为可点击的按钮。
-    场景会在后端进行验证：必须在 scenes.txt 中配置且进入次数未达上限。
 
     :param scenes: 场景名称/关键词，用空格分隔，例如 "场景A 场景B 场景C"
-    :return: 场景列表已更新的确认信息
     """
     global available_scenes
     # 解析场景列表
     available_scenes = mcp_service.select_scene(scenes)
+    return "可选场景已更新"
+
+@tool
+def get_item(item: str) -> str:
+    """
+    当玩家获得某样物品时调用此函数。
+
+    当判断出用户获得（买到，捡到等关键词）某个道具时调用此函数。
+    将物品名称作为参数传入。
+
+    :param scenes: 场景名称/关键词，用空格分隔，例如 "场景A 场景B 场景C"
+    :return: 场景列表已更新的确认信息
+    """
     return "可选场景已更新"
 
 # 工具列表
@@ -164,7 +176,7 @@ model = ChatDeepSeek(
     model="deepseek-chat",
     api_key=DEEPSEEK_API_KEY,
     base_url=DEEPSEEK_URL,
-    temperature=1.2
+    temperature=1
 )
 
 # 创建Agent，使用动态提示词中间件和checkpointer

@@ -19,15 +19,15 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 DEFAULT_SCENES_DIR = os.path.join(PROJECT_ROOT, "scenes")
 
 # 基础提示词模板
-BASE_PROMPT = """
-你是一个克苏鲁神话角色扮演游戏(CoC)的智能游戏主持人(GM)。
+SCENE_PROMPT = """
+你是一个克苏鲁神话角色扮演游戏(CoC)的智能游戏主持人(GM)，需要引导玩家以沉浸式游戏的氛围，根据当前剧本进行文字游戏。
 
 如有需要，使用以下mcp工具来协助玩家：
 
 1. **骰子投掷 请调用"roll_dice_tool"工具:**:
 - 当玩家需要投掷骰子时使用，例如"投掷2d10+5"或"r 1d100"
 - 支持标准的骰子表达式，如"1d6"、"2d10+5"、"3d6*5"等
-- 可以进行暗骰(is_hidden=True)，结果只对指定玩家显示
+- 可以进行暗骰(is_hidden=True)，结果不对玩家显示
 
 2. **属性或技能检定 请调用"roll_attribute_check_tool"工具:
 - 当玩家需要进行属性或技能检定时（例如"进行力量检定","进行说服检定"，".ra 侦查"等表述）使用，使用"roll_attribute_check_tool"工具
@@ -38,19 +38,16 @@ BASE_PROMPT = """
 - 当玩家角色需要进行理智检定时使用，例如"sc 1/1d6"（表示检定成功时理智惩罚的骰子表达式为"1",失败时理智惩罚的骰子表达式为"1d6"）
 - 需要提供玩家ID以及成功和失败时的理智损失表达式
 - 调用该工具前需要向玩家进行确认
-"""
 
-SCENE_GUIDANCE = """
 在场景中，请遵循以下守则：
 - 你是一名游戏的主持人
 - 将玩家视为参与该剧本的调查员，而不是剧本外拥有上帝视角的人，根据剧本内容引导玩家，不要一次性给出太多信息，给玩家的信息应当是玩家作为剧本的调查员亲身看到的，听到的，接触到的信息
-- 涉及到npc和玩家进行对话时,确保玩家和npc的对话是相互式的，必要时你可以扮演该npc与玩家进行对话，对话结束后切换回主持人的角色
-- 专注于描述当前场景的氛围和细节，使玩家身临其境，引导玩家探索场景中的线索，根据玩家的行动推进剧情，已经推进完成或错过的剧情不要再次进行
+- 涉及到npc和玩家进行对话时,确保玩家和npc的对话是相互式的，必要时你可以扮演该npc与玩家进行对话
+- 描述场景时注重氛围和细节，使玩家身临其境，引导玩家探索场景中的线索，根据玩家的行动推进剧情，已经推进完成或错过的剧情不要再次进行
 - 理解玩家的意图并选择合适的工具
 - 拒绝玩家进行上帝视角的操作（拒绝玩家直接询问还没进行到的剧情，玩家的技能，属性检定必须调用工具，不能跳过检定工具直接要求检定成功）
+- 给玩家返回信息时，注意不要返回玩家不应该知道的信息（例如不能出现，玩家还没有检定就能知道每个检定成功或失败后对应剧情的发展）
 """
-
-SCENE_PROMPT = BASE_PROMPT + SCENE_GUIDANCE
 
 
 class ThreadManager:
@@ -76,7 +73,7 @@ class ThreadManager:
         try:
             with open(main_prompt_file, 'r', encoding='utf-8') as f:
                 content = f.read()
-            return BASE_PROMPT + SCENE_GUIDANCE + f"\n【主线剧本内容】\n{content}"
+            return SCENE_PROMPT + f"\n【主线剧本内容】\n{content}"
         except FileNotFoundError:
             return SCENE_PROMPT
 
@@ -222,23 +219,23 @@ class McpService:
 
     def exit_scene_with_agent(self, exited_scene: str, return_scene: str, thread_messages: list = None) -> str:
         """
-        退出场景并调用 single agent 生成响应
+        退出场景并调用模型生成场景总结
 
         :param exited_scene: 退出的场景名称
         :param return_scene: 返回的场景名称
         :param thread_messages: 当前场景的对话历史
-        :return: agent 生成的响应文本
+        :return: 模型生成的响应文本
         """
         from langchain.messages import HumanMessage, SystemMessage, AIMessage
-        from src_test.service.single_agent_service import agent as single_agent
+        from src_test.service.single_agent_service import model as summary_model
 
-        logger.info(f"[场景] 调用 single agent，退出场景: {exited_scene} -> {return_scene}")
+        logger.info(f"[场景] 调用场景总结模型，退出场景: {exited_scene} -> {return_scene}")
 
         # 构建消息列表
         messages = []
 
         # 添加空的系统提示词 TODO
-        messages.append(SystemMessage(content="将所有的历史内容进行简要的总结"))
+        messages.append(SystemMessage(content="将所有的历史内容进行简要的总结（模板：玩家在某个场景，与哪些人物对话，获得了什么重要的信息）"))
 
         # 添加对话历史
         if thread_messages:
@@ -250,7 +247,7 @@ class McpService:
                 if hasattr(msg, 'content'):
                     content = msg.content
                     # 截断过长的内容以便日志查看
-                    content_preview = content[:100] + "..." if len(content) > 100 else content
+                    content_preview = content[:10] + "..." if len(content) > 10 else content
                     logger.debug(f"[场景]   消息 {i+1}: [{msg_type}] {content_preview}")
                 else:
                     logger.debug(f"[场景]   消息 {i+1}: [{msg_type}] (无 content 属性)")
@@ -259,26 +256,25 @@ class McpService:
             messages.append(HumanMessage(content=f"玩家从场景「{exited_scene}」退回到场景「{return_scene}」。"))
 
         try:
-            # 使用非流式调用
-            response = single_agent.invoke({"messages": messages})
+            logger.debug(f"[场景] 开始调用模型，消息数量: {len(messages)}")
 
-            # 提取响应内容
+            # 使用非流式调用（model 直接调用，不需要 {"messages": ...} 格式）
+            response = summary_model.invoke(messages)
+
+            logger.debug(f"[场景] 模型返回，响应类型: {type(response)}")
+
+            # 提取响应内容（model.invoke 返回 AIMessage 对象）
             content = ""
-            if isinstance(response, dict):
-                if 'model' in response and 'messages' in response['model']:
-                    for msg in response['model']['messages']:
-                        if isinstance(msg, AIMessage) and hasattr(msg, 'content'):
-                            content = msg.content
-                            break
-                elif 'messages' in response:
-                    for msg in response['messages']:
-                        if isinstance(msg, AIMessage) and hasattr(msg, 'content'):
-                            content = msg.content
-                            break
+            if isinstance(response, AIMessage):
+                content = response.content
+            elif hasattr(response, 'content'):
+                content = str(response.content)
+            else:
+                content = str(response)
 
-            logger.info(f"[场景] single agent 响应: {content[:100] if content else '(empty)'}...")
+            logger.info(f"[场景] 场景总结响应: {content[:100] if content else '(empty)'}...")
             return content if content else f"你离开了{exited_scene}，回到了{return_scene}。"
         except Exception as e:
-            logger.error(f"[场景] single agent 调用失败: {e}", exc_info=True)
+            logger.error(f"[场景] 场景总结模型调用失败: {e}", exc_info=True)
             # 返回默认描述
             return f"你离开了{exited_scene}，回到了{return_scene}。" 

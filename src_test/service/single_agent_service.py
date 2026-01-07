@@ -1,6 +1,6 @@
 """
-Agent 服务
-从原 agent/test_agent.py 提取
+Single Agent 服务
+用于场景总结等简单任务
 """
 
 import os
@@ -9,7 +9,6 @@ from src_test.infrastructure.log import get_logger
 
 logger = get_logger("AGENT")
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_agent
 
 # 加载环境变量
 load_dotenv(override=True)
@@ -18,18 +17,12 @@ load_dotenv(override=True)
 MODELSCOPE_API_KEY = os.getenv("MODELSCOPE_API_KEY")
 MODELSCOPE_URL = os.getenv("MODELSCOPE_URL")
 
-logger.info("初始化Qwen3-8B模型...")
+logger.info("初始化Qwen3-8B模型（用于场景总结）...")
 model = ChatOpenAI(
     model="Qwen/Qwen3-8B",
     api_key=MODELSCOPE_API_KEY,
     base_url=MODELSCOPE_URL,
-    temperature=1.0,
+    temperature=0.7,
     extra_body={"enable_thinking": False}
 )
-
-# 创建Agent，使用动态提示词中间件和checkpointer
-logger.info("创建Qwen3-8B Agent...")
-agent = create_agent(
-    model=model
-)
-logger.info("Agent初始化完成")
+logger.info("场景总结模型初始化完成")

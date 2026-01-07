@@ -127,7 +127,7 @@ def send_message(
             thread_messages[current_thread_id].append(AIMessage(content=full_response))
             yield "data: [DONE]\n\n"
         except Exception as e:
-            logger.error(f"[API] 消息处理失败: {str(e)}", exc_info=True)
+            logger.error("[API] 消息处理失败: {}", e)
             yield f"data: [ERROR] {str(e)}\n\n"
 
     return StreamingResponse(generate_stream(), media_type="text/event-stream")
