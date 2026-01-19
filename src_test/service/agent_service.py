@@ -134,14 +134,14 @@ def select_scene(scenes: str) -> str:
     提供可以进入的场景按钮。
 
     当明确提到调用"select_scene"时调用此函数，否则不要调用这个工具。
-    将场景名称以空格分隔传入，前端会显示为可点击的按钮。
+    将场景名称以空格分隔传入。
 
     :param scenes: 场景名称/关键词，用空格分隔，例如 "场景A 场景B 场景C"
     """
     global available_scenes
     # 解析场景列表
     available_scenes = mcp_service.select_scene(scenes)
-    return "可选场景已更新"
+    return "调用成功，输出：场景已经更新完成。"
 
 @tool
 def get_item(item: str) -> str:
@@ -168,15 +168,16 @@ def dynamic_system_prompt(request: ModelRequest) -> str:
 
 
 # 初始化模型
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEEPSEEK_URL = os.getenv("DEEPSEEK_URL")
+ALIYUN_API_KEY = os.getenv("ALIYUN_API_KEY")
+ALIYUN_URL = os.getenv("ALIYUN_URL")
 
 logger.info("初始化DeepSeek模型...")
-model = ChatDeepSeek(
-    model="deepseek-chat",
-    api_key=DEEPSEEK_API_KEY,
-    base_url=DEEPSEEK_URL,
-    temperature=1
+model = ChatOpenAI(
+    model="qwen-max",
+    api_key=ALIYUN_API_KEY,
+    base_url=ALIYUN_URL,
+    temperature=1.5,
+    presence_penalty=0.3
 )
 
 # 创建Agent，使用动态提示词中间件和checkpointer

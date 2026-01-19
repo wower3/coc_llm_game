@@ -9,7 +9,7 @@ sys.path.insert(0, str(project_root))
 from src_test.service.agent_service import agent
 from src_test.service.scene_service import ThreadManager
 from src_test.infrastructure.log import get_logger
-from langchain.messages import HumanMessage, AIMessage, SystemMessage
+from langchain.messages import HumanMessage, AIMessage, SystemMessage, AnyMessage, ToolMessage, AIMessageChunk
 
 logger = get_logger("CLI")
 thread_manager = ThreadManager()
@@ -58,16 +58,36 @@ def main():
         # 显示AI回复
         print("游戏主持人:", end="", flush=True)
 
+        def _render_completed_message(message: AnyMessage) -> None:
+            if isinstance(message, AIMessage) and message.tool_calls:
+                # print(f"Tool calls: {message.tool_calls}")
+                print("1")
+            if isinstance(message, ToolMessage):
+                # print(f"Tool response: {message.content_blocks}")
+                print("2")
+
+        def _render_message_chunk(token: AIMessageChunk) -> None:
+            if token.text:
+                print(token.text, end="", flush=True)
+
         # 使用agent处理用户输入，传入thread_id实现记忆隔离 TODO
         full_response = ""
-        for token, metadata in agent.stream(
+        for stream_mode, data in agent.stream(
             {"messages": thread_messages[current_thread_id]},
-            stream_mode="messages",
+            stream_mode=["messages", "updates"],
             config=config
         ):
-            print(token.content, end="", flush=True)
-            full_response += token.content
+            if stream_mode == "messages":
+                token, metadata = data
+                if isinstance(token, AIMessageChunk):
+                    _render_message_chunk(token)
+            if stream_mode == "updates":
+                for source, update in data.items():
+                    thread_messages[current_thread_id].append(update["messages"][-1])
+                    if source in ("model", "tools"):  # `source` captures node name
+                        _render_completed_message(update["messages"][-1])
         print("\n" + "-" * 40)  # 分隔线
+        print(thread_messages[current_thread_id])
         logger.info(f"[CLI] AI回复: {full_response[:50]}...")
         # 测试记忆内容
         # print(thread_messages[current_thread_id])

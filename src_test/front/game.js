@@ -458,9 +458,13 @@ const App = {
                 });
 
                 // 自动发送"继续"消息获取场景描述（流式传输）
-                await this.sendToAI(`我已从其他场景退回当前场景。
-                                    在其他场景中的经历如下：${result.agent_message}。结合其他场景的经历，根据当前剧本继续游戏。
-                                    `);
+                const exitedScene = result.exited_scene || '其他场景';
+                const returnScene = result.return_scene || '当前场景';
+                await this.sendToAI(
+                    `我已从【${exitedScene}】退回【${returnScene}】。` +
+                    `在【${exitedScene}】中的经历如下：${result.agent_message}。` +
+                    `结合这些经历，根据当前剧本继续游戏。`
+                );
             } else {
                 this.addMessage({
                     type: 'system',

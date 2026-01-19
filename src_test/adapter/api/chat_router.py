@@ -8,8 +8,10 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from src_test.infrastructure.log import get_logger
+from langchain.messages import HumanMessage, AIMessage, SystemMessage, AnyMessage, ToolMessage, AIMessageChunk
 
 logger = get_logger("API")
+agent_logger = get_logger("AGENT")
 router = APIRouter(prefix="/chat", tags=["对话服务"])
 
 # 延迟导入，避免循环依赖
@@ -71,7 +73,6 @@ def send_message(
 
     authorization: Bearer token格式的认证头，用于提取当前用户ID
     """
-    from langchain.messages import HumanMessage,AIMessage
     global thread_messages
 
     # 解析token获取user_id
@@ -110,21 +111,61 @@ def send_message(
 
     if current_thread_id not in thread_messages:
         thread_messages[current_thread_id] = []
+
+    # 记录交互前的 thread_messages 状态
+    agent_logger.info(f"=== 交互前线程消息历史 [线程: {current_thread_id[:8]}] ===")
+    agent_logger.info(f"当前场景: {tm.current_scene}, 深度: {tm.scene_depth}")
+    # agent_logger.info(f"消息总数: {len(thread_messages[current_thread_id])}")
+    # for i, msg in enumerate(thread_messages[current_thread_id], 1):
+    #     msg_type = type(msg).__name__
+    #     if hasattr(msg, 'content'):
+    #         content = msg.content
+    #         agent_logger.info(f"  [{i}] {msg_type}: {content}")
+    #     else:
+    #         agent_logger.info(f"  [{i}] {msg_type}: (无 content)")
+    # agent_logger.info(f"=== 消息历史结束 ===\n")
+
+    # 添加用户消息
     thread_messages[current_thread_id].append(HumanMessage(content=user_message))
+    agent_logger.info(f">>> 用户输入: {user_message}")
+
     config = {"configurable": {"thread_id": current_thread_id}}
 
     def generate_stream():
         try:
-            full_response = ""
-            for token, _ in agent.stream(
+            full_res = []
+            for stream_mode, data in agent.stream(
                 {"messages": thread_messages[current_thread_id]},
-                stream_mode="messages", config=config
+                stream_mode=["messages", "updates"],
+                config=config
             ):
-                if token.content:
-                    full_response += token.content
-                    yield f"data: {token.content}\n\n"
-            logger.info(f"[API] AI响应完成: {full_response[:50]}...")
-            thread_messages[current_thread_id].append(AIMessage(content=full_response))
+                if stream_mode == "messages":
+                    token, metadata = data
+                    if isinstance(token, AIMessageChunk):
+                        if token.text:
+                            yield f"data: {token.content}\n\n"
+                if stream_mode == "updates":
+                    for source, update in data.items():
+                        thread_messages[current_thread_id].append(update["messages"][-1])
+                        full_res.append(update["messages"][-1])
+            logger.info(f"[API] AI响应完成: {full_res[-1].content}...")
+
+            # 记录完整的 thread_messages 到 agent.log
+            agent_logger.info(f"<<< AI响应: {full_res[-1].content}")
+            agent_logger.info(f"=== 交互后线程消息历史 [线程: {current_thread_id[:8]}] ===")
+            agent_logger.info(f"当前场景: {tm.current_scene}, 深度: {tm.scene_depth}")
+            agent_logger.info(f"消息总数: {len(thread_messages[current_thread_id])}")
+            agent_logger.info(thread_messages[current_thread_id])
+            # for i, msg in enumerate(thread_messages[current_thread_id], 1):
+            #     msg_type = type(msg).__name__
+            #     if hasattr(msg, 'content'):
+            #         content = msg.content
+            #         # 完整记录每条消息内容
+            #         agent_logger.info(f"  [{i}] {msg_type}: {content}")
+            #     else:
+            #         agent_logger.info(f"  [{i}] {msg_type}: (无 content)")
+            agent_logger.info(f"=== 消息历史结束 ===\n")
+
             yield "data: [DONE]\n\n"
         except Exception as e:
             logger.error("[API] 消息处理失败: {}", e)
@@ -277,6 +318,8 @@ def exit_current_scene():
         return {
             'success': True,
             'message': f'已退出：{exited_scene}，返回：{return_scene}',
+            'exited_scene': exited_scene,
+            'return_scene': return_scene,
             'scene_depth': tm.scene_depth,
             'current_scene': tm.current_scene,
             'in_scene': tm.in_scene,

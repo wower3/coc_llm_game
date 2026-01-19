@@ -32,7 +32,7 @@ SCENE_PROMPT = """
 2. **属性或技能检定 请调用"roll_attribute_check_tool"工具:
 - 当玩家需要进行属性或技能检定时（例如"进行力量检定","进行说服检定"，".ra 侦查"等表述）使用，使用"roll_attribute_check_tool"工具
 - 需要提供玩家ID和属性或技能名称
-- 调用该工具前需要向玩家进行确认
+- 调用该工具前需要向玩家进行确认，在得到玩家的允许后才调用该工具
 
 3. **理智检定 请调用"roll_sanity_check_tool"工具**:
 - 当玩家角色需要进行理智检定时使用，例如"sc 1/1d6"（表示检定成功时理智惩罚的骰子表达式为"1",失败时理智惩罚的骰子表达式为"1d6"）
@@ -43,10 +43,11 @@ SCENE_PROMPT = """
 - 你是一名游戏的主持人
 - 将玩家视为参与该剧本的调查员，而不是剧本外拥有上帝视角的人，根据剧本内容引导玩家，不要一次性给出太多信息，给玩家的信息应当是玩家作为剧本的调查员亲身看到的，听到的，接触到的信息
 - 涉及到npc和玩家进行对话时,确保玩家和npc的对话是相互式的，必要时你可以扮演该npc与玩家进行对话
-- 描述场景时注重氛围和细节，使玩家身临其境，引导玩家探索场景中的线索，根据玩家的行动推进剧情，已经推进完成或错过的剧情不要再次进行
+- 描述场景时注重氛围和细节，尽可能给出沉浸式的描述，使玩家身临其境，引导玩家探索场景中的线索，根据玩家的行动推进剧情，已经推进完成或错过的剧情不要再次进行
 - 理解玩家的意图并选择合适的工具
 - 拒绝玩家进行上帝视角的操作（拒绝玩家直接询问还没进行到的剧情，玩家的技能，属性检定必须调用工具，不能跳过检定工具直接要求检定成功）
 - 给玩家返回信息时，注意不要返回玩家不应该知道的信息（例如不能出现，玩家还没有检定就能知道每个检定成功或失败后对应剧情的发展）
+- 你的所有输出内容都要基于剧本（即在剧本中能找到根据，而不是随意输出的）
 """
 
 
@@ -62,6 +63,8 @@ class ThreadManager:
         self.scenes_dir = scenes_dir
         self.txt_search = TxtKeywordSearch(scenes_dir)
         self.main_prompt = self._load_main_prompt()
+        # 主场景名称
+        self.main_scene_name = "开始场景"
         # 场景进入次数限制
         self.scene_limits: dict[str, int] = {}
         self.entered_count: dict[str, int] = {}
@@ -175,7 +178,7 @@ class ThreadManager:
         logger.info(f"[场景] 尝试退出场景，当前深度: {self.scene_depth}")
         if not self.scene_stack:
             logger.warning("[场景] 当前不在任何场景中")
-            return ("", "主线程", self.main_thread_id)
+            return ("", self.main_scene_name, self.main_thread_id)
         exited_scene = self.scene_stack.pop()
         if self.scene_stack:
             parent = self.scene_stack[-1]
@@ -183,8 +186,8 @@ class ThreadManager:
             logger.info(f"[场景] 退出场景: {exited_scene.scene_name}, 返回: {parent.scene_name}, 新深度: {self.scene_depth}")
             return (exited_scene.scene_name, parent.scene_name, parent.thread_id)
         self.current_thread_id = self.main_thread_id
-        logger.info(f"[场景] 退出场景: {exited_scene.scene_name}, 返回主线程")
-        return (exited_scene.scene_name, "主线程", self.main_thread_id)
+        logger.info(f"[场景] 退出场景: {exited_scene.scene_name}, 返回: {self.main_scene_name}")
+        return (exited_scene.scene_name, self.main_scene_name, self.main_thread_id)
 
     def get_current_prompt(self) -> str:
         """获取当前提示词"""
@@ -235,7 +238,12 @@ class McpService:
         messages = []
 
         # 添加空的系统提示词 TODO
-        messages.append(SystemMessage(content="将所有的历史内容进行简要的总结（模板：玩家在某个场景，与哪些人物对话，获得了什么重要的信息）"))
+        messages.append(SystemMessage(content=f"""指令： 
+                                      我结束了在{exited_scene}的调查。请代入我的角色，用 1-2 句话向主场景的 Agent 汇报我的经历。 
+                                      过滤原则： 删掉所有细节信息和过程信息，只保留我在{exited_scene}场景中解决了什么问题、或知道了什么秘密，或达成了什么重要成就。 
+                                      示例1： “我在“{exited_scene}”场景中，得知了艾利亚教堂的主教其实是个黄衣之王的信徒。”
+                                      示例2： “我在“{exited_scene}”场景完成了一场战斗，该场景中的邪教徒被我杀死了2个，逃走了1个。”
+                                      示例3： “我在“{exited_scene}”场景经过不断的探索，发现了xxx这个重要的线索，得到了yyy这个重要的物品。”"""))
 
         # 添加对话历史
         if thread_messages:
